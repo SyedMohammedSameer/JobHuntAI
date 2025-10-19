@@ -7,6 +7,7 @@ import dotenv from 'dotenv';
 import connectDB from './config/database';
 import { logger } from './utils/logger';
 import authRoutes from './routes/authRoutes';
+import jobRoutes from './routes/jobRoutes'; // NEW
 
 // Load environment variables
 dotenv.config();
@@ -75,6 +76,7 @@ if (process.env.NODE_ENV === 'development') {
 
 // API Routes
 app.use('/api/auth', authLimiter, authRoutes);
+app.use('/api/jobs', jobRoutes); // NEW
 
 // Health check endpoint
 app.get('/health', (_req: Request, res: Response) => {
@@ -82,6 +84,7 @@ app.get('/health', (_req: Request, res: Response) => {
     success: true,
     message: 'Server is running',
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
   });
 });
 
@@ -92,6 +95,11 @@ app.get('/', (_req: Request, res: Response) => {
     message: 'AI Job Hunt API',
     version: '1.0.0',
     documentation: '/api/docs',
+    endpoints: {
+      auth: '/api/auth',
+      jobs: '/api/jobs', // NEW
+      health: '/health',
+    },
   });
 });
 
@@ -119,6 +127,15 @@ const PORT = process.env.PORT || 5000;
 
 const server = app.listen(PORT, () => {
   logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
+  console.log('\n🚀 ================================');
+  console.log(`   Server running on port ${PORT}`);
+  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
+  console.log('   ================================\n');
+  console.log('📡 Available endpoints:');
+  console.log(`   - Health: http://localhost:${PORT}/health`);
+  console.log(`   - Auth: http://localhost:${PORT}/api/auth`);
+  console.log(`   - Jobs: http://localhost:${PORT}/api/jobs`);
+  console.log('\n');
 });
 
 // Handle unhandled promise rejections

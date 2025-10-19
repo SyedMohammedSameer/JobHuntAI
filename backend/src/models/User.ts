@@ -3,23 +3,27 @@ import bcrypt from 'bcryptjs';
 
 // User interface
 export interface IUser extends Document {
+  // Basic Info
   email: string;
   password: string;
   firstName: string;
   lastName: string;
   profilePicture?: string;
   
-  // Student/Professional Info
+  // Profile Info
   university?: string;
-  graduationDate?: Date;
   major?: string;
+  graduationYear?: number;
+  currentYear?: 'Freshman' | 'Sophomore' | 'Junior' | 'Senior' | 'Graduate';
+  graduationDate?: Date;
   degreeType?: string;
   
-  // Visa Information
+  // Visa/Work Status
   visaType?: 'F1' | 'OPT' | 'STEM_OPT' | 'H1B' | 'GREEN_CARD' | 'CITIZEN' | 'OTHER';
   visaExpiryDate?: Date;
   optStartDate?: Date;
   optEndDate?: Date;
+  workAuthorization?: string;
   
   // Subscription
   subscriptionTier: 'FREE' | 'PREMIUM';
@@ -28,14 +32,14 @@ export interface IUser extends Document {
   stripeCustomerId?: string;
   stripeSubscriptionId?: string;
   
-  // Usage Tracking (for free tier limits)
+  // Usage Tracking
   monthlyUsage: {
     resumeTailoring: number;
     coverLetters: number;
     resetDate: Date;
   };
   
-  // Preferences
+  // Job Preferences
   jobPreferences?: {
     jobTypes?: string[];
     locations?: string[];
@@ -45,7 +49,10 @@ export interface IUser extends Document {
     salaryMax?: number;
   };
   
-  // Account Status
+  // Bookmarked Jobs (NEW)
+  bookmarkedJobs: mongoose.Types.ObjectId[];
+  
+  // Account
   isEmailVerified: boolean;
   isActive: boolean;
   lastLogin?: Date;
@@ -70,7 +77,7 @@ const UserSchema: Schema = new Schema(
   {
     email: {
       type: String,
-      required: true,
+      required: [true, 'Email is required'],
       unique: true,
       lowercase: true,
       trim: true,
@@ -78,32 +85,37 @@ const UserSchema: Schema = new Schema(
     },
     password: {
       type: String,
-      required: false, // We'll validate this in the controller
-      minlength: 8,
-      select: false, // Don't return password by default
+      required: false, // Not required for OAuth users
+      minlength: [8, 'Password must be at least 8 characters long'],
+      select: false, // Don't include password in queries by default
     },
     firstName: {
       type: String,
-      required: true,
+      required: [true, 'First name is required'],
       trim: true,
     },
     lastName: {
       type: String,
-      required: true,
+      required: [true, 'Last name is required'],
       trim: true,
     },
     profilePicture: String,
     
-    // Student Info
+    // Profile Info
     university: String,
-    graduationDate: Date,
     major: String,
+    graduationYear: Number,
+    currentYear: {
+      type: String,
+      enum: ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'],
+    },
+    graduationDate: Date,
     degreeType: {
       type: String,
       enum: ['BACHELOR', 'MASTER', 'PHD', 'CERTIFICATE', 'OTHER'],
     },
     
-    // Visa
+    // Visa/Work Status
     visaType: {
       type: String,
       enum: ['F1', 'OPT', 'STEM_OPT', 'H1B', 'GREEN_CARD', 'CITIZEN', 'OTHER'],
@@ -111,6 +123,7 @@ const UserSchema: Schema = new Schema(
     visaExpiryDate: Date,
     optStartDate: Date,
     optEndDate: Date,
+    workAuthorization: String,
     
     // Subscription
     subscriptionTier: {
@@ -152,6 +165,12 @@ const UserSchema: Schema = new Schema(
       salaryMax: Number,
     },
     
+    // Bookmarked Jobs (NEW)
+    bookmarkedJobs: [{
+      type: Schema.Types.ObjectId,
+      ref: 'Job',
+    }],
+    
     // Account
     isEmailVerified: {
       type: Boolean,
@@ -172,7 +191,7 @@ const UserSchema: Schema = new Schema(
   }
 );
 
-// Index for performance
+// Indexes for performance
 UserSchema.index({ subscriptionTier: 1 });
 UserSchema.index({ googleId: 1 });
 
