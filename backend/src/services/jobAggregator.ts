@@ -2,13 +2,18 @@ import Job from '../models/Job';
 import { JobApiResponse, JobSearchParams } from './jobApis/types';
 import usajobsService from './jobApis/usajobs';
 import remoteokService from './jobApis/remoteok';
+import arbeitnowService from './jobApis/arbeitnow';
+import joobleService from './jobApis/jooble';
+import careerjetService from './jobApis/careerjet';
 import { logger } from '../utils/logger';
 
 class JobAggregatorService {
   private services = [
     { name: 'usajobs', service: usajobsService },
     { name: 'remoteok', service: remoteokService },
-    // Add more services as we build them
+    { name: 'arbeitnow', service: arbeitnowService },
+    { name: 'jooble', service: joobleService },
+    { name: 'careerjet', service: careerjetService }
   ];
 
   /**

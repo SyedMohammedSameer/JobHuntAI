@@ -1,13 +1,21 @@
+// backend/src/controllers/jobController.ts
+// Complete Job Controller - Phase 2 (Fixed All Issues)
+
 import { Request, Response } from 'express';
-import jobAggregator from '../services/jobAggregator';
+import mongoose from 'mongoose';
 import Job from '../models/Job';
 import User from '../models/User';
-import { logger } from '../utils/logger';
-import mongoose from 'mongoose';
+import jobAggregator from '../services/jobAggregator';
+import dailyJobRefreshService from '../jobs/dailyJobRefresh';
+import jobCleanupService from '../services/jobCleanup';
+import visaDetectionService from '../services/visaDetection';
+import logger from '../utils/logger';
+
+// ==================== PHASE 1 & 2 CHUNK 1-2 METHODS ====================
 
 /**
- * Search jobs with filters
  * GET /api/jobs
+ * Search jobs with filters
  */
 export const searchJobs = async (req: Request, res: Response) => {
   try {
@@ -20,50 +28,152 @@ export const searchJobs = async (req: Request, res: Response) => {
       stemOpt,
       employmentType,
       skills,
+      source,
       page = 1,
       limit = 20
     } = req.query;
 
-    const filters = {
-      keywords: keywords as string,
-      location: location as string,
-      remote: remote === 'true',
-      h1b: h1b === 'true',
-      opt: opt === 'true',
-      stemOpt: stemOpt === 'true',
-      employmentType: employmentType as string,
-      skills: skills ? (skills as string).split(',') : []
-    };
+    // Build query
+    const query: any = { isActive: true };
 
-    const result = await jobAggregator.searchJobs(
-      filters,
-      parseInt(page as string),
-      parseInt(limit as string)
-    );
+    // Keyword search (in title or description)
+    if (keywords) {
+      query.$or = [
+        { title: { $regex: keywords, $options: 'i' } },
+        { description: { $regex: keywords, $options: 'i' } }
+      ];
+    }
+
+    // Location filter
+    if (location) {
+      query.location = { $regex: location, $options: 'i' };
+    }
+
+    // Remote filter
+    if (remote === 'true') {
+      query.remote = true;
+    }
+
+    // Visa sponsorship filters
+    if (h1b === 'true') {
+      query['visaSponsorship.h1b'] = true;
+    }
+    if (opt === 'true') {
+      query['visaSponsorship.opt'] = true;
+    }
+    if (stemOpt === 'true') {
+      query['visaSponsorship.stemOpt'] = true;
+    }
+
+    // Employment type filter
+    if (employmentType) {
+      query.employmentType = employmentType.toString().toUpperCase();
+    }
+
+    // Skills filter (match any skill in array)
+    if (skills) {
+      const skillsArray = skills.toString().split(',');
+      query.skills = { $in: skillsArray };
+    }
+
+    // Source filter
+    if (source) {
+      query.source = source.toString().toUpperCase();
+    }
+
+    // Pagination
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute query
+    const [jobs, totalCount] = await Promise.all([
+      Job.find(query)
+        .sort({ postedDate: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Job.countDocuments(query)
+    ]);
 
     res.json({
       success: true,
-      data: result.jobs,
-      pagination: result.pagination
+      data: {
+        jobs,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalCount / limitNum),
+          totalJobs: totalCount,
+          jobsPerPage: limitNum
+        }
+      }
     });
-  } catch (error: any) {
+  } catch (error) {
     logger.error('Error searching jobs:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to search jobs',
-      error: error.message
+      message: 'Error searching jobs'
     });
   }
 };
 
 /**
- * Get single job details
- * GET /api/jobs/:id
+ * GET /api/jobs/stats
+ * Get job statistics by source
  */
-export const getJobDetails = async (req: Request, res: Response) => {
+export const getJobStats = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const job = await jobAggregator.getJobById(id);
+    const stats = await Job.aggregate([
+      {
+        $group: {
+          _id: '$source',
+          count: { $sum: 1 },
+          activeCount: {
+            $sum: { $cond: ['$isActive', 1, 0] }
+          },
+          h1bCount: {
+            $sum: { $cond: ['$visaSponsorship.h1b', 1, 0] }
+          },
+          optCount: {
+            $sum: { $cond: ['$visaSponsorship.opt', 1, 0] }
+          },
+          remoteCount: {
+            $sum: { $cond: ['$remote', 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: { count: -1 }
+      }
+    ]);
+
+    const totalJobs = await Job.countDocuments();
+    const activeJobs = await Job.countDocuments({ isActive: true });
+
+    res.json({
+      success: true,
+      data: {
+        totalJobs,
+        activeJobs,
+        bySource: stats
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting job stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting job statistics'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/:id
+ * Get single job details
+ */
+export const getJobById = async (req: Request, res: Response) => {
+  try {
+    const job = await Job.findById(req.params.id);
 
     if (!job) {
       return res.status(404).json({
@@ -76,26 +186,33 @@ export const getJobDetails = async (req: Request, res: Response) => {
       success: true,
       data: job
     });
-  } catch (error: any) {
-    logger.error('Error getting job details:', error);
+  } catch (error) {
+    logger.error('Error getting job:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get job details',
-      error: error.message
+      message: 'Error getting job details'
     });
   }
 };
 
 /**
- * Bookmark a job
  * POST /api/jobs/:id/bookmark
+ * Bookmark or unbookmark a job (requires authentication)
  */
 export const bookmarkJob = async (req: Request, res: Response) => {
   try {
-    const { id } = req.params;
-    const userId = (req as any).userId; // From auth middleware
+    const userId = req.user?.userId;
+    const jobId = req.params.id;
 
-    const job = await Job.findById(id);
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Check if job exists
+    const job = await Job.findById(jobId);
     if (!job) {
       return res.status(404).json({
         success: false,
@@ -103,6 +220,7 @@ export const bookmarkJob = async (req: Request, res: Response) => {
       });
     }
 
+    // Get user
     const user = await User.findById(userId);
     if (!user) {
       return res.status(404).json({
@@ -111,151 +229,393 @@ export const bookmarkJob = async (req: Request, res: Response) => {
       });
     }
 
-    // Convert id to ObjectId
-    const jobObjectId = new mongoose.Types.ObjectId(id);
+    // Convert jobId to ObjectId for comparison
+    const jobObjectId = new mongoose.Types.ObjectId(jobId);
 
     // Check if already bookmarked
-    const bookmarkedJobs = user.bookmarkedJobs || [];
-    const isBookmarked = bookmarkedJobs.some(
-      (jobId: any) => jobId.toString() === id
+    const bookmarkIndex = user.bookmarkedJobs.findIndex(
+      (id: any) => id.toString() === jobId
     );
+    let action: string;
 
-    if (isBookmarked) {
+    if (bookmarkIndex > -1) {
       // Remove bookmark
-      user.bookmarkedJobs = bookmarkedJobs.filter(
-        (jobId: any) => jobId.toString() !== id
-      ) as mongoose.Types.ObjectId[];
-      await user.save();
-
-      return res.json({
-        success: true,
-        message: 'Job unbookmarked',
-        bookmarked: false
-      });
+      user.bookmarkedJobs.splice(bookmarkIndex, 1);
+      action = 'removed';
     } else {
       // Add bookmark
-      user.bookmarkedJobs = [...bookmarkedJobs, jobObjectId] as mongoose.Types.ObjectId[];
-      await user.save();
-
-      return res.json({
-        success: true,
-        message: 'Job bookmarked',
-        bookmarked: true
-      });
-    }
-  } catch (error: any) {
-    logger.error('Error bookmarking job:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to bookmark job',
-      error: error.message
-    });
-  }
-};
-
-/**
- * Get user's bookmarked jobs
- * GET /api/jobs/bookmarked
- */
-export const getBookmarkedJobs = async (req: Request, res: Response) => {
-  try {
-    const userId = (req as any).userId;
-    const { page = 1, limit = 20 } = req.query;
-
-    const user = await User.findById(userId);
-    if (!user) {
-      return res.status(404).json({
-        success: false,
-        message: 'User not found'
-      });
+      user.bookmarkedJobs.push(jobObjectId as any);
+      action = 'added';
     }
 
-    const bookmarkedJobIds = user.bookmarkedJobs || [];
-    const skip = (parseInt(page as string) - 1) * parseInt(limit as string);
-
-    const jobs = await Job.find({ _id: { $in: bookmarkedJobIds } })
-      .sort({ postedDate: -1 })
-      .skip(skip)
-      .limit(parseInt(limit as string))
-      .lean();
-
-    const total = bookmarkedJobIds.length;
+    await user.save();
 
     res.json({
       success: true,
-      data: jobs,
-      pagination: {
-        total,
-        page: parseInt(page as string),
-        limit: parseInt(limit as string),
-        pages: Math.ceil(total / parseInt(limit as string))
+      message: `Job ${action} ${action === 'added' ? 'to' : 'from'} bookmarks`,
+      data: {
+        bookmarked: action === 'added',
+        totalBookmarks: user.bookmarkedJobs.length
       }
     });
-  } catch (error: any) {
-    logger.error('Error getting bookmarked jobs:', error);
+  } catch (error) {
+    logger.error('Error bookmarking job:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get bookmarked jobs',
-      error: error.message
+      message: 'Error bookmarking job'
     });
   }
 };
 
 /**
- * Get job statistics
- * GET /api/jobs/stats
+ * GET /api/jobs/bookmarked/list
+ * Get user's bookmarked jobs (requires authentication)
  */
-export const getJobStats = async (req: Request, res: Response) => {
+export const getBookmarkedJobs = async (req: Request, res: Response) => {
   try {
-    const stats = await jobAggregator.getStats();
-    
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    const user = await User.findById(userId).populate('bookmarkedJobs');
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    res.json({
+      success: true,
+      data: {
+        jobs: user.bookmarkedJobs,
+        totalBookmarks: user.bookmarkedJobs.length
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting bookmarked jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting bookmarked jobs'
+    });
+  }
+};
+
+/**
+ * POST /api/jobs/aggregate
+ * Manually trigger job aggregation (requires authentication)
+ */
+export const triggerJobAggregation = async (req: Request, res: Response) => {
+  try {
+    logger.info(`Job aggregation triggered by user: ${req.user?.email}`);
+
+    // Call the correct method from your jobAggregator
+    const result = await jobAggregator.aggregateJobs();
+
+    res.json({
+      success: true,
+      message: 'Job aggregation completed',
+      data: {
+        totalJobs: result,
+        message: `Successfully aggregated ${result} jobs`
+      }
+    });
+  } catch (error) {
+    logger.error('Error during job aggregation:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during job aggregation'
+    });
+  }
+};
+
+// ==================== PHASE 2 CHUNK 3 - NEW METHODS ====================
+
+/**
+ * GET /api/jobs/system/refresh-stats
+ * Get last job refresh statistics
+ */
+export const getRefreshStats = async (req: Request, res: Response) => {
+  try {
+    const stats = dailyJobRefreshService.getLastRefreshStats();
+    const isRunning = dailyJobRefreshService.isRefreshRunning();
+    const nextRun = dailyJobRefreshService.getNextScheduledRun();
+
+    res.json({
+      success: true,
+      data: {
+        lastRefresh: stats,
+        isRunning,
+        nextScheduledRun: nextRun,
+        enabled: process.env.ENABLE_DAILY_JOB_REFRESH === 'true',
+        cronSchedule: process.env.JOB_REFRESH_CRON || '0 2 * * *'
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting refresh stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting refresh statistics'
+    });
+  }
+};
+
+/**
+ * POST /api/jobs/system/refresh
+ * Manually trigger job refresh (admin/authenticated)
+ */
+export const triggerManualRefresh = async (req: Request, res: Response) => {
+  try {
+    logger.info(`Manual refresh triggered by user: ${req.user?.email}`);
+
+    // Check if already running
+    if (dailyJobRefreshService.isRefreshRunning()) {
+      return res.status(409).json({
+        success: false,
+        message: 'Job refresh is already in progress'
+      });
+    }
+
+    // Start refresh asynchronously
+    dailyJobRefreshService.triggerManualRefresh().catch(error => {
+      logger.error('Manual refresh failed:', error);
+    });
+
+    res.json({
+      success: true,
+      message: 'Job refresh started. Check /api/jobs/system/refresh-stats for progress.'
+    });
+  } catch (error) {
+    logger.error('Error triggering manual refresh:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error triggering job refresh'
+    });
+  }
+};
+
+/**
+ * POST /api/jobs/system/cleanup
+ * Manually trigger cleanup (admin only)
+ */
+export const triggerCleanup = async (req: Request, res: Response) => {
+  try {
+    logger.info(`Manual cleanup triggered by user: ${req.user?.email}`);
+
+    const result = await jobCleanupService.performFullCleanup();
+
+    res.json({
+      success: true,
+      message: 'Cleanup completed successfully',
+      data: result
+    });
+  } catch (error) {
+    logger.error('Error during cleanup:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during cleanup operation'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/system/cleanup-stats
+ * Get cleanup statistics
+ */
+export const getCleanupStats = async (req: Request, res: Response) => {
+  try {
+    const stats = await jobCleanupService.getCleanupStats();
+
     res.json({
       success: true,
       data: stats
     });
-  } catch (error: any) {
-    logger.error('Error getting job stats:', error);
+  } catch (error) {
+    logger.error('Error getting cleanup stats:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to get job statistics',
-      error: error.message
+      message: 'Error getting cleanup statistics'
     });
   }
 };
 
 /**
- * Trigger manual job aggregation (admin only)
- * POST /api/jobs/aggregate
+ * POST /api/jobs/:id/analyze-visa
+ * Analyze visa sponsorship for a specific job
  */
-export const triggerAggregation = async (req: Request, res: Response) => {
+export const analyzeJobVisa = async (req: Request, res: Response) => {
   try {
-    const { keywords, location } = req.body;
+    const job = await Job.findById(req.params.id);
 
-    const params = {
-      keywords,
-      location,
-      limit: 50
-    };
-
-    // Run aggregation in background
-    jobAggregator.aggregateJobs(params)
-      .then(count => {
-        logger.info(`Background aggregation completed: ${count} jobs`);
-      })
-      .catch(error => {
-        logger.error('Background aggregation error:', error);
+    if (!job) {
+      return res.status(404).json({
+        success: false,
+        message: 'Job not found'
       });
+    }
+
+    const visaAnalysis = visaDetectionService.detectVisaSponsorship(
+      job.title,
+      job.description,
+      job.company
+    );
+
+    // Optionally update the job with new analysis
+    if (req.query.update === 'true') {
+      job.visaSponsorship.h1b = visaAnalysis.h1b;
+      job.visaSponsorship.opt = visaAnalysis.opt;
+      job.visaSponsorship.stemOpt = visaAnalysis.stemOpt;
+      await job.save();
+    }
 
     res.json({
       success: true,
-      message: 'Job aggregation started in background'
+      data: {
+        jobId: job._id,
+        title: job.title,
+        company: job.company,
+        currentVisa: job.visaSponsorship,
+        analysis: visaAnalysis
+      }
     });
-  } catch (error: any) {
-    logger.error('Error triggering aggregation:', error);
+  } catch (error) {
+    logger.error('Error analyzing job visa:', error);
     res.status(500).json({
       success: false,
-      message: 'Failed to trigger aggregation',
-      error: error.message
+      message: 'Error analyzing visa sponsorship'
+    });
+  }
+};
+
+/**
+ * POST /api/jobs/batch/analyze-visa
+ * Batch analyze visa sponsorship for all jobs
+ */
+export const batchAnalyzeVisa = async (req: Request, res: Response) => {
+  try {
+    const { limit = 100, source } = req.query;
+
+    // Build query
+    const query: any = {};
+    if (source) {
+      query.source = source.toString().toUpperCase();
+    }
+
+    // Get jobs to analyze
+    const jobs = await Job.find(query)
+      .limit(Number(limit))
+      .select('title description company visaSponsorship');
+
+    logger.info(`Analyzing ${jobs.length} jobs for visa sponsorship`);
+
+    let updated = 0;
+    const results = [];
+
+    for (const job of jobs) {
+      const analysis = visaDetectionService.detectVisaSponsorship(
+        job.title,
+        job.description,
+        job.company
+      );
+
+      // Update if different
+      if (
+        job.visaSponsorship.h1b !== analysis.h1b ||
+        job.visaSponsorship.opt !== analysis.opt ||
+        job.visaSponsorship.stemOpt !== analysis.stemOpt
+      ) {
+        job.visaSponsorship.h1b = analysis.h1b;
+        job.visaSponsorship.opt = analysis.opt;
+        job.visaSponsorship.stemOpt = analysis.stemOpt;
+        await job.save();
+        updated++;
+      }
+
+      results.push({
+        jobId: job._id,
+        title: job.title,
+        company: job.company,
+        confidence: analysis.confidence,
+        detected: analysis
+      });
+    }
+
+    res.json({
+      success: true,
+      message: `Analyzed ${jobs.length} jobs, updated ${updated}`,
+      data: {
+        totalAnalyzed: jobs.length,
+        totalUpdated: updated,
+        results
+      }
+    });
+  } catch (error) {
+    logger.error('Error in batch visa analysis:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during batch visa analysis'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/system/health
+ * Get job system health status
+ */
+export const getJobSystemHealth = async (req: Request, res: Response) => {
+  try {
+    const [
+      totalJobs,
+      activeJobs,
+      jobsBySource,
+      refreshStats,
+      cleanupStats
+    ] = await Promise.all([
+      Job.countDocuments(),
+      Job.countDocuments({ isActive: true }),
+      Job.aggregate([
+        { $group: { _id: '$source', count: { $sum: 1 } } }
+      ]),
+      dailyJobRefreshService.getLastRefreshStats(),
+      jobCleanupService.getCleanupStats()
+    ]);
+
+    const sourceMap = jobsBySource.reduce((acc, item) => {
+      acc[item._id] = item.count;
+      return acc;
+    }, {} as { [source: string]: number });
+
+    res.json({
+      success: true,
+      data: {
+        status: 'healthy',
+        jobs: {
+          total: totalJobs,
+          active: activeJobs,
+          inactive: totalJobs - activeJobs,
+          bySource: sourceMap
+        },
+        lastRefresh: refreshStats,
+        cleanupStats,
+        cron: {
+          enabled: process.env.ENABLE_DAILY_JOB_REFRESH === 'true',
+          schedule: process.env.JOB_REFRESH_CRON || '0 2 * * *',
+          nextRun: dailyJobRefreshService.getNextScheduledRun()
+        },
+        timestamp: new Date()
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting job system health:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting system health'
     });
   }
 };

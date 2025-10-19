@@ -1,155 +1,215 @@
-import express, { Application, Request, Response, NextFunction } from 'express';
+// backend/src/server.ts
+// Complete Server Setup - Phase 2 with Cron Jobs
+
+import express, { Request, Response, NextFunction } from 'express';
+import dotenv from 'dotenv';
 import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
-import dotenv from 'dotenv';
 import connectDB from './config/database';
-import { logger } from './utils/logger';
+import logger from './utils/logger';
+
+// Import Routes
 import authRoutes from './routes/authRoutes';
-import jobRoutes from './routes/jobRoutes'; // NEW
+import jobRoutes from './routes/jobRoutes';
+
+// Import Cron Jobs (NEW - Phase 2)
+import dailyJobRefreshService from './jobs/dailyJobRefresh';
 
 // Load environment variables
 dotenv.config();
 
-// Check required environment variables
-const requiredEnvVars = ['MONGODB_URI', 'JWT_SECRET', 'JWT_REFRESH_SECRET'];
-const missingEnvVars = requiredEnvVars.filter(varName => !process.env[varName]);
-
-if (missingEnvVars.length > 0) {
-  console.error('❌ Missing required environment variables:', missingEnvVars.join(', '));
-  console.error('Please check your .env file and ensure all required variables are set.');
-  process.exit(1);
-}
-
 // Initialize Express app
-const app: Application = express();
+const app = express();
 
-// Connect to MongoDB
-connectDB();
+// Environment variables
+const PORT = process.env.PORT || 5000;
+const NODE_ENV = process.env.NODE_ENV || 'development';
+const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+// ==================== MIDDLEWARE ====================
 
 // Security middleware
-app.use(helmet({
-  crossOriginResourcePolicy: { policy: "cross-origin" }
-}));
+app.use(helmet());
 
 // CORS configuration
-const corsOptions = {
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-  credentials: true,
-  optionsSuccessStatus: 200,
-};
-app.use(cors(corsOptions));
+app.use(
+  cors({
+    origin: FRONTEND_URL,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+  })
+);
 
-// Rate limiting
-const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // Limit each IP to 100 requests per windowMs
-  message: 'Too many requests from this IP, please try again later.',
-  standardHeaders: true,
-  legacyHeaders: false,
-});
-app.use('/api/', limiter);
-
-// Stricter rate limit for auth routes
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 5, // 5 requests per 15 minutes
-  message: 'Too many authentication attempts, please try again later.',
-  skipSuccessfulRequests: true,
-});
-
-// Body parser middleware
+// Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
-// HTTP request logger
-if (process.env.NODE_ENV === 'development') {
+// HTTP request logger (only in development)
+if (NODE_ENV === 'development') {
   app.use(morgan('dev'));
-} else {
-  app.use(morgan('combined', {
-    stream: {
-      write: (message: string) => logger.info(message.trim()),
-    },
-  }));
 }
 
-// API Routes
-app.use('/api/auth', authLimiter, authRoutes);
-app.use('/api/jobs', jobRoutes); // NEW
+// Rate limiting
+const limiter = rateLimit({
+  windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000'), // 1 minute
+  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100'), // 100 requests per minute
+  message: 'Too many requests from this IP, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
-// Health check endpoint
-app.get('/health', (_req: Request, res: Response) => {
+app.use('/api/', limiter);
+
+// ==================== ROUTES ====================
+
+// Health check route
+app.get('/health', (req: Request, res: Response) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime(),
+    environment: NODE_ENV,
+    timestamp: new Date().toISOString()
   });
 });
 
-// Root endpoint
-app.get('/', (_req: Request, res: Response) => {
-  res.status(200).json({
-    success: true,
-    message: 'AI Job Hunt API',
-    version: '1.0.0',
-    documentation: '/api/docs',
-    endpoints: {
-      auth: '/api/auth',
-      jobs: '/api/jobs', // NEW
-      health: '/health',
-    },
-  });
-});
+// API Routes
+app.use('/api/auth', authRoutes);
+app.use('/api/jobs', jobRoutes);
 
 // 404 handler
-app.use((_req: Request, res: Response) => {
+app.use((req: Request, res: Response) => {
   res.status(404).json({
     success: false,
     message: 'Route not found',
+    path: req.path
   });
 });
 
 // Global error handler
-app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   logger.error('Unhandled error:', err);
-  
+
   res.status(err.status || 500).json({
     success: false,
     message: err.message || 'Internal server error',
-    ...(process.env.NODE_ENV === 'development' && { stack: err.stack }),
+    ...(NODE_ENV === 'development' && { stack: err.stack })
   });
 });
 
-// Start server
-const PORT = process.env.PORT || 5000;
+// ==================== CRON JOB INITIALIZATION (NEW - PHASE 2) ====================
 
-const server = app.listen(PORT, () => {
-  logger.info(`Server running in ${process.env.NODE_ENV || 'development'} mode on port ${PORT}`);
-  console.log('\n🚀 ================================');
-  console.log(`   Server running on port ${PORT}`);
-  console.log(`   Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log('   ================================\n');
-  console.log('📡 Available endpoints:');
-  console.log(`   - Health: http://localhost:${PORT}/health`);
-  console.log(`   - Auth: http://localhost:${PORT}/api/auth`);
-  console.log(`   - Jobs: http://localhost:${PORT}/api/jobs`);
-  console.log('\n');
-});
+/**
+ * Initialize automated job refresh cron
+ */
+const initializeJobCron = (): void => {
+  try {
+    // Start the daily job refresh cron
+    dailyJobRefreshService.start();
+    
+    logger.info('✅ Job refresh cron initialized successfully');
+  } catch (error) {
+    logger.error('❌ Failed to initialize job refresh cron:', error);
+    // Don't exit - server can still run without cron
+  }
+};
 
-// Handle unhandled promise rejections
-process.on('unhandledRejection', (err: Error) => {
-  logger.error('Unhandled Rejection:', err);
-  server.close(() => {
+// ==================== SERVER STARTUP ====================
+
+/**
+ * Start the server
+ */
+const startServer = async (): Promise<void> => {
+  try {
+    // Step 1: Connect to MongoDB
+    logger.info('🔄 Connecting to MongoDB...');
+    await connectDB();
+    logger.info('✅ MongoDB connected successfully');
+
+    // Step 2: Initialize cron jobs (NEW - PHASE 2)
+    logger.info('🔄 Initializing cron jobs...');
+    initializeJobCron();
+
+    // Step 3: Start Express server
+    const server = app.listen(PORT, () => {
+      logger.info('═══════════════════════════════════════════════════');
+      logger.info(`🚀 Server running on port ${PORT}`);
+      logger.info(`📡 Environment: ${NODE_ENV}`);
+      logger.info(`🌐 Frontend URL: ${FRONTEND_URL}`);
+      logger.info(`⏰ Cron Jobs: ${process.env.ENABLE_DAILY_JOB_REFRESH === 'true' ? 'ENABLED' : 'DISABLED'}`);
+      if (process.env.ENABLE_DAILY_JOB_REFRESH === 'true') {
+        logger.info(`📅 Cron Schedule: ${process.env.JOB_REFRESH_CRON || '0 2 * * *'}`);
+      }
+      logger.info('═══════════════════════════════════════════════════');
+    });
+
+    // ==================== GRACEFUL SHUTDOWN (NEW - PHASE 2) ====================
+
+    /**
+     * Graceful shutdown handler
+     */
+    const gracefulShutdown = (signal: string): void => {
+      logger.info(`\n${signal} signal received. Starting graceful shutdown...`);
+
+      // Step 1: Stop accepting new requests
+      server.close(() => {
+        logger.info('✅ HTTP server closed');
+
+        // Step 2: Stop cron jobs
+        try {
+          dailyJobRefreshService.stop();
+          logger.info('✅ Cron jobs stopped');
+        } catch (error) {
+          logger.error('❌ Error stopping cron jobs:', error);
+        }
+
+        // Step 3: Close database connection
+        // MongoDB will close automatically, but you can add explicit cleanup if needed
+        logger.info('✅ Database connections closed');
+
+        logger.info('👋 Graceful shutdown complete. Goodbye!');
+        process.exit(0);
+      });
+
+      // Force shutdown after 30 seconds if graceful shutdown fails
+      setTimeout(() => {
+        logger.error('⚠️ Could not close connections in time, forcefully shutting down');
+        process.exit(1);
+      }, 30000);
+    };
+
+    // Listen for termination signals
+    process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+    process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+    // Handle uncaught exceptions
+    process.on('uncaughtException', (error: Error) => {
+      logger.error('🔥 UNCAUGHT EXCEPTION! Shutting down...');
+      logger.error(error);
+      process.exit(1);
+    });
+
+    // Handle unhandled promise rejections
+    process.on('unhandledRejection', (reason: any, promise: Promise<any>) => {
+      logger.error('🔥 UNHANDLED REJECTION! Shutting down...');
+      logger.error('Reason:', reason);
+      process.exit(1);
+    });
+
+  } catch (error) {
+    logger.error('❌ Failed to start server:', error);
     process.exit(1);
-  });
-});
+  }
+};
 
-// Handle uncaught exceptions
-process.on('uncaughtException', (err: Error) => {
-  logger.error('Uncaught Exception:', err);
-  process.exit(1);
-});
+// ==================== START APPLICATION ====================
 
+// Only start server if this file is run directly (not imported)
+if (require.main === module) {
+  startServer();
+}
+
+// Export app for testing
 export default app;
