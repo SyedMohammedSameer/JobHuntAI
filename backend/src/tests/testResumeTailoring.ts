@@ -108,87 +108,90 @@ async function disconnectDB() {
     logger.error('MongoDB disconnection error:', error);
   }
 }
-
 async function setupTestData() {
   try {
     logger.info('Setting up test data...');
 
+    // Delete existing test data first
+    await User.deleteOne({ email: 'test@resumetailoring.com' });
+    await Resume.deleteMany({ userId: testUserId });
+    await Job.deleteMany({ sourceJobId: 'test-job-001' });
+
     // Create test user
-    const existingUser = await User.findById(testUserId);
-    if (!existingUser) {
-      await User.create({
-        _id: testUserId,
-        email: 'test@resumetailoring.com',
-        password: 'hashedpassword123',
-        firstName: 'Test',
-        lastName: 'User',
-        aiUsage: {
-          resumeTailoring: { count: 0, lastReset: new Date(), lastUsed: null },
-          coverLetterGeneration: { count: 0, lastReset: new Date(), lastUsed: null }
-        },
-        subscription: {
-          plan: 'FREE',
-          features: {
-            maxResumeTailoring: 3,
-            maxCoverLetters: 3,
-            aiPriority: false,
-            unlimitedBookmarks: false
-          }
+    await User.create({
+      _id: testUserId,
+      email: 'test@resumetailoring.com',
+      password: 'hashedpassword123',
+      firstName: 'Test',
+      lastName: 'User',
+      aiUsage: {
+        resumeTailoring: { count: 0, lastReset: new Date(), lastUsed: null },
+        coverLetterGeneration: { count: 0, lastReset: new Date(), lastUsed: null }
+      },
+      subscription: {
+        plan: 'FREE',
+        features: {
+          maxResumeTailoring: 3,
+          maxCoverLetters: 3,
+          aiPriority: false,
+          unlimitedBookmarks: false
         }
-      });
-      logger.info('Test user created');
-    }
-
+      }
+    });
+    
     // Create test resume
-    const existingResume = await Resume.findById(testResumeId);
-    if (!existingResume) {
-      await Resume.create({
-        _id: testResumeId,
-        userId: testUserId,
-        fileName: 'john_doe_resume.pdf',
-        filePath: 'uploads/test/john_doe_resume.pdf',
-        originalText: sampleResumeText,
-        type: 'BASE',
-        metadata: {
-          wordCount: sampleResumeText.split(/\s+/).length,
-          format: 'pdf',
-          uploadDate: new Date()
-        }
-      });
-      logger.info('Test resume created');
-    }
-
+    await Resume.create({
+      _id: testResumeId,
+      userId: testUserId,
+      fileName: 'john_doe_resume.pdf',
+      filePath: 'uploads/test/john_doe_resume.pdf',
+      originalText: sampleResumeText,
+      type: 'BASE',
+      metadata: {
+        wordCount: sampleResumeText.split(/\s+/).length,
+        format: 'pdf',
+        uploadDate: new Date()
+      }
+    });
+    
     // Create test job
-    const existingJob = await Job.findById(testJobId);
-    if (!existingJob) {
-      await Job.create({
-        _id: testJobId,
-        title: 'Senior Full Stack Engineer',
-        company: 'Tech Innovations Inc.',
-        location: 'San Francisco, CA',
-        description: sampleJobDescription,
-        source: 'test',
-        sourceJobId: 'test-job-001',
-        postedDate: new Date(),
-        requirements: [
-          '3-5 years of experience in full-stack development',
-          'Strong proficiency in JavaScript/TypeScript, React, and Node.js',
-          'Experience with GraphQL and RESTful API design'
-        ],
-        visaSponsorship: {
-          isAvailable: true,
-          types: ['H1B', 'OPT'],
-          confidence: 'high',
-          source: 'explicit'
-        },
-        salaryRange: {
-          min: 120000,
-          max: 180000,
-          currency: 'USD'
-        }
-      });
-      logger.info('Test job created');
-    }
+    await Job.create({
+      _id: testJobId,
+      title: 'Senior Full Stack Engineer',
+      company: 'Tech Innovations Inc.',
+      location: 'San Francisco, CA',
+      description: sampleJobDescription,
+      requirements: [
+        '3-5 years of experience in full-stack development',
+        'Strong proficiency in JavaScript/TypeScript, React, and Node.js',
+        'Experience with GraphQL and RESTful API design'
+      ],
+      responsibilities: [],
+      employmentType: 'FULL_TIME',
+      experienceLevel: 'MID',
+      remote: false,
+      salaryMin: 120000,
+      salaryMax: 180000,
+      salaryCurrency: 'USD',
+      visaSponsorship: {
+        h1b: true,
+        opt: true,
+        stemOpt: true
+      },
+      source: 'MANUAL',
+      sourceJobId: 'test-job-001',
+      sourceUrl: 'https://test.com/jobs/001',
+      applicationUrl: 'https://test.com/apply/001',
+      isUniversityJob: false,
+      postedDate: new Date(),
+      skillsRequired: ['JavaScript', 'TypeScript', 'React', 'Node.js'],
+      industryTags: ['Technology', 'Software'],
+      views: 0,
+      applications: 0,
+      isActive: true,
+      isFeatured: false,
+      lastRefreshed: new Date()
+    });
 
     logger.info('Test data setup complete');
   } catch (error) {

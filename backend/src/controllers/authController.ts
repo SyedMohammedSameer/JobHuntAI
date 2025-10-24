@@ -55,7 +55,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     const tokens = generateTokens({
       userId: (user._id as any).toString(),
       email: user.email,
-      subscriptionTier: user.subscriptionTier,
+      subscriptionTier: user.subscription.plan,
     });
 
     logger.info(`New user registered: ${email}`);
@@ -69,7 +69,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          subscriptionTier: user.subscriptionTier,
+          subscriptionTier: user.subscription.plan,
         },
         ...tokens,
       },
@@ -134,7 +134,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const tokens = generateTokens({
       userId: (user._id as any).toString(),
       email: user.email,
-      subscriptionTier: user.subscriptionTier,
+      subscriptionTier: user.subscription.plan,
     });
 
     logger.info(`User logged in: ${email}`);
@@ -148,7 +148,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
           email: user.email,
           firstName: user.firstName,
           lastName: user.lastName,
-          subscriptionTier: user.subscriptionTier,
+          subscriptionTier: user.subscription.plan,
           visaType: user.visaType,
           visaExpiryDate: user.visaExpiryDate,
         },
@@ -197,7 +197,7 @@ export const refreshToken = async (
     const tokens = generateTokens({
       userId: (user._id as any).toString(),
       email: user.email,
-      subscriptionTier: user.subscriptionTier,
+      subscriptionTier: user.subscription.plan,
     });
 
     res.status(200).json({

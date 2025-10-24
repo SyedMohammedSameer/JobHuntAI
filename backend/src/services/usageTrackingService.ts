@@ -226,7 +226,7 @@ class UsageTrackingService {
           resetAt,
           canUse: coverLetterCount < coverLetterLimit
         },
-        subscriptionPlan: user.subscriptionPlan
+        subscriptionPlan: user.subscription.plan
       };
     } catch (error: any) {
       logger.error('Error getting usage stats:', error);

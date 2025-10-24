@@ -115,35 +115,34 @@ class ResumeTailoringService {
       // Step 8: Save tailored resume
       logger.info('Saving tailored resume to database');
       
-      // Generate filename from original resume name or create default
+      // Generate filename and filepath
       const originalFileName = (resume as any).fileName || 'resume';
       const baseFileName = originalFileName.split('.')[0];
       const tailoredFileName = `${baseFileName}_tailored_${job.company.replace(/\s+/g, '_')}.pdf`;
+      const tailoredFilePath = `uploads/resumes/${tailoredFileName}`;
       
-      // Create resume document data
-      const resumeData = {
-        userId: new Types.ObjectId(userId),
+      // Create resume using documentStorageService with correct parameters
+      const tailoredResume = await documentStorageService.saveResume({
+        userId: userId, // string
         fileName: tailoredFileName,
-        originalText: resumeText,
-        tailoredContent: optimizedContent,
+        filePath: tailoredFilePath, // required
+        originalText: optimizedContent, // save tailored content as originalText
         type: 'TAILORED' as const,
-        baseResumeId: new Types.ObjectId(resumeId),
-        jobId: new Types.ObjectId(jobId),
+        jobId: jobId, // string
         metadata: {
           wordCount: optimizedContent.split(/\s+/).length,
           keywords: jobAnalysis.keywords,
           atsScore: atsScore.overallScore,
           uploadDate: new Date(),
+          format: 'pdf',
           tailoredFor: {
             jobTitle: job.title,
             company: job.company,
             jobId: jobId
-          }
+          },
+          baseResumeId: resumeId // store original resume ID in metadata
         }
-      };
-      
-      const tailoredResume = await documentStorageService.saveResume(resumeData);
-      const tailoredResume = await documentStorageService.saveResume(resumeData);
+      });
 
       // Step 9: Increment usage counter
       await usageTrackingService.incrementUsage(userId, 'resumeTailoring');
@@ -396,7 +395,7 @@ class ResumeTailoringService {
       const result = await openaiService.generateResumeTailoring(
         resumeText,
         job.description,
-        job.title
+        jobAnalysis.keywords
       );
 
       // Extract improvements from the result
