@@ -17,7 +17,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-[#00B4D8] to-[#0077B6] items-center justify-center mb-4">
+          <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-[#34d399] to-[#10b981] items-center justify-center mb-4">
             <span className="text-2xl text-white">AI</span>
           </div>
           <h1 className="text-3xl mb-2">Welcome Back</h1>
@@ -38,7 +38,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <Label htmlFor="password">Password</Label>
-                <button className="text-sm text-[#0077B6] hover:underline">
+                <button className="text-sm text-[#10b981] hover:underline">
                   Forgot password?
                 </button>
               </div>
@@ -91,7 +91,7 @@ export function LoginPage({ onNavigate }: LoginPageProps) {
             <div className="text-center text-sm">
               Don't have an account?{" "}
               <button
-                className="text-[#0077B6] hover:underline"
+                className="text-[#10b981] hover:underline"
                 onClick={() => onNavigate("signup")}
               >
                 Sign up

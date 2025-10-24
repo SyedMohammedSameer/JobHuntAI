@@ -41,7 +41,7 @@ export function Navbar({ onThemeToggle, isDark, onNavigate, isAuthenticated, onS
           onClick={() => onNavigate(isAuthenticated ? "dashboard" : "landing")}
           className="flex items-center gap-2 flex-shrink-0"
         >
-          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#00B4D8] to-[#0077B6] flex items-center justify-center">
+          <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-[#34d399] to-[#10b981] flex items-center justify-center">
             <span className="text-white text-sm">AI</span>
           </div>
           <span className="hidden sm:inline">AI Job Hunt</span>
@@ -78,7 +78,7 @@ export function Navbar({ onThemeToggle, isDark, onNavigate, isAuthenticated, onS
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar>
                       <AvatarImage src="" />
-                      <AvatarFallback className="bg-gradient-to-br from-[#00B4D8] to-[#0077B6] text-white">
+                      <AvatarFallback className="bg-gradient-to-br from-[#34d399] to-[#10b981] text-white">
                         JD
                       </AvatarFallback>
                     </Avatar>

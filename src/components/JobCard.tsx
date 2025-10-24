@@ -42,7 +42,7 @@ export function JobCard({ job, onSave, onApply, onClick }: JobCardProps) {
               </div>
               <Badge
                 variant="secondary"
-                className="bg-gradient-to-r from-[#00B4D8]/10 to-[#0077B6]/10 text-[#0077B6] border-0 text-xs sm:text-sm whitespace-nowrap"
+                className="bg-gradient-to-r from-[#34d399]/10 to-[#10b981]/10 text-[#10b981] border-0 text-xs sm:text-sm whitespace-nowrap"
               >
                 {job.matchScore}% Match
               </Badge>

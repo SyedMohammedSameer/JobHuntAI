@@ -18,7 +18,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-6">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-[#00B4D8] to-[#0077B6] items-center justify-center mb-4">
+          <div className="inline-flex h-16 w-16 rounded-2xl bg-gradient-to-br from-[#34d399] to-[#10b981] items-center justify-center mb-4">
             <span className="text-2xl text-white">AI</span>
           </div>
           <h1 className="text-3xl mb-2">Create Your Account</h1>
@@ -109,7 +109,7 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
             <div className="text-center text-sm">
               Already have an account?{" "}
               <button
-                className="text-[#0077B6] hover:underline"
+                className="text-[#10b981] hover:underline"
                 onClick={() => onNavigate("login")}
               >
                 Log in
@@ -118,9 +118,9 @@ export function SignupPage({ onNavigate }: SignupPageProps) {
 
             <p className="text-xs text-center text-muted-foreground">
               By signing up, you agree to our{" "}
-              <a href="#" className="text-[#0077B6] hover:underline">Terms of Service</a>
+              <a href="#" className="text-[#10b981] hover:underline">Terms of Service</a>
               {" "}and{" "}
-              <a href="#" className="text-[#0077B6] hover:underline">Privacy Policy</a>
+              <a href="#" className="text-[#10b981] hover:underline">Privacy Policy</a>
             </p>
           </CardContent>
         </Card>

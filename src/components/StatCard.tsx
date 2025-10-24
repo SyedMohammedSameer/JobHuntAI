@@ -14,7 +14,7 @@ interface StatCardProps {
 
 export function StatCard({ title, value, icon: Icon, trend, gradient }: StatCardProps) {
   return (
-    <Card className={gradient ? "bg-gradient-to-br from-[#00B4D8] to-[#0077B6] text-white border-0" : ""}>
+    <Card className={gradient ? "bg-gradient-to-br from-[#34d399] to-[#10b981] text-white border-0" : ""}>
       <CardContent className="p-6">
         <div className="flex items-center justify-between">
           <div>

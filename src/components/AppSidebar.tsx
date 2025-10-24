@@ -95,7 +95,7 @@ export function AppSidebar({ currentPage, onNavigate, isOpen, onClose }: AppSide
         </div>
 
         {/* Premium CTA */}
-        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-[#00B4D8] to-[#0077B6] text-white">
+        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-[#34d399] to-[#10b981] text-white">
           <div className="flex items-center gap-2 mb-2">
             <Sparkles className="h-5 w-5" />
             <span className="text-sm sm:text-base">Upgrade to Premium</span>
