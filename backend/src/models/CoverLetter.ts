@@ -1,27 +1,37 @@
+// backend/src/models/CoverLetter.ts - Phase 3A Updated
+
 import mongoose, { Document, Schema } from 'mongoose';
 
-// Cover Letter interface
+// Cover Letter Tone type
+export type CoverLetterTone = 'professional' | 'enthusiastic' | 'conservative' | 'creative';
+
+// Cover Letter interface for Phase 3A+
 export interface ICoverLetter extends Document {
   userId: mongoose.Types.ObjectId;
   jobId?: mongoose.Types.ObjectId;
+  resumeId?: mongoose.Types.ObjectId; // Optional: if generated from a specific resume
   
-  // Cover Letter Content
-  content: string;
+  // Content
+  content: string; // The actual cover letter text
   
   // Metadata
   jobTitle: string;
   company: string;
-  tone: 'PROFESSIONAL' | 'ENTHUSIASTIC' | 'FORMAL' | 'FRIENDLY';
-  length: 'SHORT' | 'MEDIUM' | 'LONG';
+  tone: CoverLetterTone;
   
-  // User Inputs (used for generation)
-  userHighlights?: string;
-  customInstructions?: string;
+  // AI Generation
+  generatedByAI: boolean;
+  aiModel?: string; // e.g., "gpt-4-turbo-preview"
   
-  // AI Metadata
-  generatedBy: 'AI' | 'USER';
-  aiModel?: string;
-  qualityScore?: number; // 0-100
+  // Additional metadata
+  metadata?: {
+    wordCount?: number;
+    generatedDate?: Date;
+    tokensUsed?: number;
+    estimatedCost?: number;
+    userPrompt?: string; // Any custom instructions user provided
+    qualityScore?: number; // 0-100
+  };
   
   // Timestamps
   createdAt: Date;
@@ -37,9 +47,15 @@ const CoverLetterSchema: Schema = new Schema(
       required: true,
       index: true,
     },
+    
     jobId: {
       type: Schema.Types.ObjectId,
       ref: 'Job',
+    },
+    
+    resumeId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Resume',
     },
     
     content: {
@@ -51,6 +67,7 @@ const CoverLetterSchema: Schema = new Schema(
       type: String,
       required: true,
     },
+    
     company: {
       type: String,
       required: true,
@@ -58,28 +75,32 @@ const CoverLetterSchema: Schema = new Schema(
     
     tone: {
       type: String,
-      enum: ['PROFESSIONAL', 'ENTHUSIASTIC', 'FORMAL', 'FRIENDLY'],
-      default: 'PROFESSIONAL',
-    },
-    length: {
-      type: String,
-      enum: ['SHORT', 'MEDIUM', 'LONG'],
-      default: 'MEDIUM',
+      enum: ['professional', 'enthusiastic', 'conservative', 'creative'],
+      required: true,
+      default: 'professional',
     },
     
-    userHighlights: String,
-    customInstructions: String,
-    
-    generatedBy: {
-      type: String,
-      enum: ['AI', 'USER'],
-      default: 'AI',
+    generatedByAI: {
+      type: Boolean,
+      required: true,
+      default: true,
     },
-    aiModel: String,
-    qualityScore: {
-      type: Number,
-      min: 0,
-      max: 100,
+    
+    aiModel: {
+      type: String,
+    },
+    
+    metadata: {
+      wordCount: Number,
+      generatedDate: Date,
+      tokensUsed: Number,
+      estimatedCost: Number,
+      userPrompt: String,
+      qualityScore: {
+        type: Number,
+        min: 0,
+        max: 100,
+      },
     },
   },
   {

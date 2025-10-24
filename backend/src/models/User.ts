@@ -1,7 +1,9 @@
+// backend/src/models/User.ts - Phase 3A Updated
+
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// User interface
+// User interface for Phase 3A+
 export interface IUser extends Document {
   // Basic Info
   email: string;
@@ -25,18 +27,33 @@ export interface IUser extends Document {
   optEndDate?: Date;
   workAuthorization?: string;
   
-  // Subscription
-  subscriptionTier: 'FREE' | 'PREMIUM';
-  subscriptionStartDate?: Date;
-  subscriptionEndDate?: Date;
-  stripeCustomerId?: string;
-  stripeSubscriptionId?: string;
+  // AI Usage Tracking (Phase 3A)
+  aiUsage: {
+    resumeTailoring: {
+      count: number;
+      lastReset: Date;
+      lastUsed: Date | null;
+    };
+    coverLetterGeneration: {
+      count: number;
+      lastReset: Date;
+      lastUsed: Date | null;
+    };
+  };
   
-  // Usage Tracking
-  monthlyUsage: {
-    resumeTailoring: number;
-    coverLetters: number;
-    resetDate: Date;
+  // Subscription (Phase 3A)
+  subscription: {
+    plan: 'FREE' | 'PREMIUM';
+    startDate?: Date;
+    endDate?: Date;
+    stripeCustomerId?: string;
+    stripeSubscriptionId?: string;
+    features: {
+      maxResumeTailoring: number;
+      maxCoverLetters: number;
+      aiPriority: boolean;
+      unlimitedBookmarks: boolean;
+    };
   };
   
   // Job Preferences
@@ -49,7 +66,7 @@ export interface IUser extends Document {
     salaryMax?: number;
   };
   
-  // Bookmarked Jobs (NEW)
+  // Bookmarked Jobs
   bookmarkedJobs: mongoose.Types.ObjectId[];
   
   // Account
@@ -67,9 +84,6 @@ export interface IUser extends Document {
   
   // Methods
   comparePassword(candidatePassword: string): Promise<boolean>;
-  incrementUsage(type: 'resumeTailoring' | 'coverLetters'): Promise<void>;
-  resetMonthlyUsage(): Promise<void>;
-  canUseFeature(feature: 'resumeTailoring' | 'coverLetters'): boolean;
 }
 
 // User schema
@@ -77,26 +91,24 @@ const UserSchema: Schema = new Schema(
   {
     email: {
       type: String,
-      required: [true, 'Email is required'],
+      required: true,
       unique: true,
       lowercase: true,
       trim: true,
-      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email'],
     },
     password: {
       type: String,
-      required: false, // Not required for OAuth users
-      minlength: [8, 'Password must be at least 8 characters long'],
-      select: false, // Don't include password in queries by default
+      required: true,
+      minlength: 6,
     },
     firstName: {
       type: String,
-      required: [true, 'First name is required'],
+      required: true,
       trim: true,
     },
     lastName: {
       type: String,
-      required: [true, 'Last name is required'],
+      required: true,
       trim: true,
     },
     profilePicture: String,
@@ -110,10 +122,7 @@ const UserSchema: Schema = new Schema(
       enum: ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'],
     },
     graduationDate: Date,
-    degreeType: {
-      type: String,
-      enum: ['BACHELOR', 'MASTER', 'PHD', 'CERTIFICATE', 'OTHER'],
-    },
+    degreeType: String,
     
     // Visa/Work Status
     visaType: {
@@ -125,32 +134,65 @@ const UserSchema: Schema = new Schema(
     optEndDate: Date,
     workAuthorization: String,
     
-    // Subscription
-    subscriptionTier: {
-      type: String,
-      enum: ['FREE', 'PREMIUM'],
-      default: 'FREE',
-    },
-    subscriptionStartDate: Date,
-    subscriptionEndDate: Date,
-    stripeCustomerId: String,
-    stripeSubscriptionId: String,
-    
-    // Usage Tracking
-    monthlyUsage: {
+    // AI Usage Tracking (Phase 3A)
+    aiUsage: {
       resumeTailoring: {
-        type: Number,
-        default: 0,
+        count: {
+          type: Number,
+          default: 0,
+        },
+        lastReset: {
+          type: Date,
+          default: Date.now,
+        },
+        lastUsed: {
+          type: Date,
+          default: null,
+        },
       },
-      coverLetters: {
-        type: Number,
-        default: 0,
+      coverLetterGeneration: {
+        count: {
+          type: Number,
+          default: 0,
+        },
+        lastReset: {
+          type: Date,
+          default: Date.now,
+        },
+        lastUsed: {
+          type: Date,
+          default: null,
+        },
       },
-      resetDate: {
-        type: Date,
-        default: () => {
-          const now = new Date();
-          return new Date(now.getFullYear(), now.getMonth() + 1, 1);
+    },
+    
+    // Subscription (Phase 3A)
+    subscription: {
+      plan: {
+        type: String,
+        enum: ['FREE', 'PREMIUM'],
+        default: 'FREE',
+      },
+      startDate: Date,
+      endDate: Date,
+      stripeCustomerId: String,
+      stripeSubscriptionId: String,
+      features: {
+        maxResumeTailoring: {
+          type: Number,
+          default: 3, // FREE tier default
+        },
+        maxCoverLetters: {
+          type: Number,
+          default: 3, // FREE tier default
+        },
+        aiPriority: {
+          type: Boolean,
+          default: false,
+        },
+        unlimitedBookmarks: {
+          type: Boolean,
+          default: false,
         },
       },
     },
@@ -165,7 +207,7 @@ const UserSchema: Schema = new Schema(
       salaryMax: Number,
     },
     
-    // Bookmarked Jobs (NEW)
+    // Bookmarked Jobs
     bookmarkedJobs: [{
       type: Schema.Types.ObjectId,
       ref: 'Job',
@@ -192,8 +234,10 @@ const UserSchema: Schema = new Schema(
 );
 
 // Indexes for performance
-UserSchema.index({ subscriptionTier: 1 });
+UserSchema.index({ email: 1 });
+UserSchema.index({ 'subscription.plan': 1 });
 UserSchema.index({ googleId: 1 });
+UserSchema.index({ linkedinId: 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
@@ -213,50 +257,6 @@ UserSchema.methods.comparePassword = async function (
   candidatePassword: string
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
-};
-
-// Method to increment usage
-UserSchema.methods.incrementUsage = async function (
-  type: 'resumeTailoring' | 'coverLetters'
-): Promise<void> {
-  // Check if we need to reset monthly usage
-  const now = new Date();
-  if (now >= this.monthlyUsage.resetDate) {
-    await this.resetMonthlyUsage();
-  }
-  
-  this.monthlyUsage[type] += 1;
-  await this.save();
-};
-
-// Method to reset monthly usage
-UserSchema.methods.resetMonthlyUsage = async function (): Promise<void> {
-  const now = new Date();
-  const nextMonth = new Date(now.getFullYear(), now.getMonth() + 1, 1);
-  
-  this.monthlyUsage.resumeTailoring = 0;
-  this.monthlyUsage.coverLetters = 0;
-  this.monthlyUsage.resetDate = nextMonth;
-  
-  await this.save();
-};
-
-// Method to check if user can use a feature
-UserSchema.methods.canUseFeature = function (
-  feature: 'resumeTailoring' | 'coverLetters'
-): boolean {
-  // Premium users have unlimited access
-  if (this.subscriptionTier === 'PREMIUM') {
-    return true;
-  }
-  
-  // Free tier limits
-  const limits = {
-    resumeTailoring: 5,
-    coverLetters: 3,
-  };
-  
-  return this.monthlyUsage[feature] < limits[feature];
 };
 
 export default mongoose.model<IUser>('User', UserSchema);
