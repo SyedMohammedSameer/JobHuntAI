@@ -66,15 +66,18 @@ class DocumentStorageService {
     metadata?: Record<string, any>;
   }): Promise<any> {
     try {
+      // Extract fileName from filePath
+      const fileName = options.metadata?.fileName || path.basename(options.filePath);
+      
       const resume = new Resume({
-        user: new Types.ObjectId(options.userId),
-        type: options.type,
+        userId: new Types.ObjectId(options.userId),  // Changed from 'user'
+        fileName: fileName,  // Added required field
         filePath: options.filePath,
         originalText: options.originalText,
         tailoredContent: options.type === 'TAILORED' ? options.originalText : undefined,
-        job: options.jobId ? new Types.ObjectId(options.jobId) : undefined,
-        metadata: options.metadata || {},
-        version: 1
+        type: options.type,
+        jobId: options.jobId ? new Types.ObjectId(options.jobId) : undefined,  // Changed from 'job'
+        metadata: options.metadata || {}
       });
 
       await resume.save();
@@ -104,24 +107,34 @@ class DocumentStorageService {
     metadata?: Record<string, any>;
   }): Promise<any> {
     try {
+      // Get job details for jobTitle and company
+      const Job = require('../models/Job').default;
+      const job = await Job.findById(new Types.ObjectId(options.jobId));
+      
+      if (!job) {
+        throw new Error('Job not found');
+      }
+  
       const coverLetter = new CoverLetter({
-        user: new Types.ObjectId(options.userId),
-        job: new Types.ObjectId(options.jobId),
-        resume: options.resumeId ? new Types.ObjectId(options.resumeId) : undefined,
+        userId: new Types.ObjectId(options.userId),
+        jobId: new Types.ObjectId(options.jobId),
+        resumeId: options.resumeId ? new Types.ObjectId(options.resumeId) : undefined,
         content: options.content,
+        jobTitle: job.title,
+        company: job.company,
         tone: options.tone,
         generatedByAI: true,
         metadata: options.metadata || {}
       });
-
+  
       await coverLetter.save();
-
+  
       logger.info('Cover letter saved to database', {
         userId: options.userId,
         coverLetterId: coverLetter._id,
         jobId: options.jobId
       });
-
+  
       return coverLetter;
     } catch (error: any) {
       logger.error('Error saving cover letter to database:', error);

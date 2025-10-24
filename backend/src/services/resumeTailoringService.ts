@@ -56,9 +56,9 @@ class ResumeTailoringService {
       logger.info(`Starting resume tailoring for user ${userId}, resume ${resumeId}, job ${jobId}`);
 
       // Step 1: Check usage limits
-      const canUse = await usageTrackingService.canUseFeature(userId, 'resumeTailoring');
-      if (!canUse) {
-        throw new Error('Daily resume tailoring limit reached. Please upgrade to Premium or try again tomorrow.');
+      const usageCheck = await usageTrackingService.canUseFeature(userId, 'resumeTailoring');
+      if (!usageCheck.canUse) {
+        throw new Error(usageCheck.reason || 'Daily resume tailoring limit reached. Please upgrade to Premium or try again tomorrow.');
       }
 
       // Step 2: Fetch resume and job from database
@@ -114,22 +114,20 @@ class ResumeTailoringService {
 
       // Step 8: Save tailored resume
       logger.info('Saving tailored resume to database');
-      
-      // Generate filename and filepath
+
       const originalFileName = (resume as any).fileName || 'resume';
       const baseFileName = originalFileName.split('.')[0];
       const tailoredFileName = `${baseFileName}_tailored_${job.company.replace(/\s+/g, '_')}.pdf`;
       const tailoredFilePath = `uploads/resumes/${tailoredFileName}`;
-      
-      // Create resume using documentStorageService with correct parameters
+
       const tailoredResume = await documentStorageService.saveResume({
-        userId: userId, // string
-        fileName: tailoredFileName,
-        filePath: tailoredFilePath, // required
-        originalText: optimizedContent, // save tailored content as originalText
+        userId: userId,
+        filePath: tailoredFilePath,
+        originalText: optimizedContent,
         type: 'TAILORED' as const,
-        jobId: jobId, // string
+        jobId: jobId,
         metadata: {
+          fileName: tailoredFileName,  // Store fileName in metadata
           wordCount: optimizedContent.split(/\s+/).length,
           keywords: jobAnalysis.keywords,
           atsScore: atsScore.overallScore,
@@ -140,7 +138,7 @@ class ResumeTailoringService {
             company: job.company,
             jobId: jobId
           },
-          baseResumeId: resumeId // store original resume ID in metadata
+          baseResumeId: resumeId
         }
       });
 
