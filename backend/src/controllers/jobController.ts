@@ -10,6 +10,7 @@ import dailyJobRefreshService from '../jobs/dailyJobRefresh';
 import jobCleanupService from '../services/jobCleanup';
 import visaDetectionService from '../services/visaDetection';
 import logger from '../utils/logger';
+import universityJobScraper from '../services/universityJobScraper';
 
 // ==================== PHASE 1 & 2 CHUNK 1-2 METHODS ====================
 
@@ -616,6 +617,137 @@ export const getJobSystemHealth = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting system health'
+    });
+  }
+};
+
+
+export const triggerUniversityScrape = async (req: Request, res: Response) => {
+  try {
+    logger.info(`University job scraping triggered by user: ${req.user?.email}`);
+
+    const result = await universityJobScraper.scrapeAllUniversities();
+
+    res.json({
+      success: true,
+      message: 'University job scraping completed',
+      data: result
+    });
+  } catch (error) {
+    logger.error('Error during university job scraping:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error during university job scraping'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/university
+ * Get university-specific jobs with filters
+ */
+export const getUniversityJobs = async (req: Request, res: Response) => {
+  try {
+    const {
+      university,
+      keywords,
+      location,
+      h1b,
+      opt,
+      stemOpt,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    // Build query
+    const query: any = { 
+      source: 'UNIVERSITY',
+      isActive: true 
+    };
+
+    // Filter by specific university
+    if (university) {
+      query['metadata.university'] = { $regex: university, $options: 'i' };
+    }
+
+    // Keyword search
+    if (keywords) {
+      query.$or = [
+        { title: { $regex: keywords, $options: 'i' } },
+        { description: { $regex: keywords, $options: 'i' } },
+        { company: { $regex: keywords, $options: 'i' } }
+      ];
+    }
+
+    // Location filter
+    if (location) {
+      query.location = { $regex: location, $options: 'i' };
+    }
+
+    // Visa filters
+    if (h1b === 'true') {
+      query['visaSponsorship.h1b'] = true;
+    }
+    if (opt === 'true') {
+      query['visaSponsorship.opt'] = true;
+    }
+    if (stemOpt === 'true') {
+      query['visaSponsorship.stemOpt'] = true;
+    }
+
+    // Pagination
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Execute query
+    const [jobs, totalCount] = await Promise.all([
+      Job.find(query)
+        .sort({ postedDate: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Job.countDocuments(query)
+    ]);
+
+    res.json({
+      success: true,
+      data: {
+        jobs,
+        pagination: {
+          currentPage: pageNum,
+          totalPages: Math.ceil(totalCount / limitNum),
+          totalJobs: totalCount,
+          jobsPerPage: limitNum
+        }
+      }
+    });
+  } catch (error) {
+    logger.error('Error getting university jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting university jobs'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/university/stats
+ * Get university job statistics
+ */
+export const getUniversityJobStats = async (req: Request, res: Response) => {
+  try {
+    const stats = await universityJobScraper.getUniversityJobStats();
+
+    res.json({
+      success: true,
+      data: stats
+    });
+  } catch (error) {
+    logger.error('Error getting university job stats:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error getting university job statistics'
     });
   }
 };

@@ -17,7 +17,10 @@ import {
   getCleanupStats,
   analyzeJobVisa,
   batchAnalyzeVisa,
-  getJobSystemHealth
+  getJobSystemHealth,
+  triggerUniversityScrape,
+  getUniversityJobs,
+  getUniversityJobStats
 } from '../controllers/jobController';
 import { authenticateToken } from '../middlewares/auth';
 
@@ -51,6 +54,9 @@ router.post('/aggregate', authenticateToken, triggerJobAggregation);       // Tr
 router.post('/system/refresh', authenticateToken, triggerManualRefresh);   // Trigger manual refresh
 router.post('/system/cleanup', authenticateToken, triggerCleanup);         // Trigger cleanup
 router.post('/batch/analyze-visa', authenticateToken, batchAnalyzeVisa);   // Batch analyze visa sponsorship
+router.get('/university', getUniversityJobs);                           // Get university jobs (public)
+router.get('/university/stats', getUniversityJobStats);                 // Get university stats (public)
+router.post('/university/scrape', authenticateToken, triggerUniversityScrape);  // Trigger scraping (protected)
 
 export default router;
 

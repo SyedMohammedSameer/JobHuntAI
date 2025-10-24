@@ -1,8 +1,10 @@
 // backend/src/jobs/dailyJobRefresh.ts
+// REPLACE THE EXISTING dailyJobRefresh.ts WITH THIS VERSION
 
 import cron from 'node-cron';
 import jobAggregator from '../services/jobAggregator';
 import jobCleanupService from '../services/jobCleanup';
+import universityJobScraper from '../services/universityJobScraper';
 import logger from '../utils/logger';
 
 /**
@@ -16,6 +18,7 @@ interface RefreshStats {
   newJobsAdded: number;
   jobsUpdated: number;
   jobsCleaned: number;
+  universityJobsScraped: number;
   sources: {
     [key: string]: {
       fetched: number;
@@ -89,6 +92,7 @@ class DailyJobRefreshService {
       newJobsAdded: 0,
       jobsUpdated: 0,
       jobsCleaned: 0,
+      universityJobsScraped: 0,
       sources: {},
       duration: 0,
       success: false,
@@ -101,20 +105,32 @@ class DailyJobRefreshService {
       const totalJobs = await jobAggregator.aggregateJobs();
 
       stats.totalJobsFetched = totalJobs;
-      stats.newJobsAdded = totalJobs; // Simplified - adjust based on your aggregator's return
+      stats.newJobsAdded = totalJobs;
 
       logger.info(`✅ Aggregation complete: ${stats.totalJobsFetched} jobs fetched`);
 
-      // Step 2: Clean up old/inactive jobs
-      logger.info('Step 2: Cleaning up old jobs...');
+      // Step 2: Scrape university jobs (NEW)
+      logger.info('Step 2: Scraping university career portals...');
+      try {
+        const universityResult = await universityJobScraper.scrapeAllUniversities();
+        stats.universityJobsScraped = universityResult.totalSaved;
+        logger.info(`✅ University scraping complete: ${stats.universityJobsScraped} jobs saved`);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        logger.error(`⚠️ University scraping failed: ${errorMessage}`);
+        stats.errors.push(`University scraping: ${errorMessage}`);
+      }
+
+      // Step 3: Clean up old/inactive jobs
+      logger.info('Step 3: Cleaning up old jobs...');
       const cleanupResult = await jobCleanupService.cleanupOldJobs();
 
       stats.jobsCleaned = cleanupResult.deletedCount;
 
       logger.info(`✅ Cleanup complete: ${stats.jobsCleaned} jobs removed`);
 
-      // Step 3: Run deduplication
-      logger.info('Step 3: Running deduplication...');
+      // Step 4: Run deduplication
+      logger.info('Step 4: Running deduplication...');
       const deduplicationResult = await jobCleanupService.deduplicateJobs();
 
       logger.info(`✅ Deduplication complete: ${deduplicationResult.duplicatesRemoved} duplicates removed`);
@@ -193,6 +209,7 @@ class DailyJobRefreshService {
     logger.info(`  Total Fetched: ${stats.totalJobsFetched}`);
     logger.info(`  New Jobs: ${stats.newJobsAdded}`);
     logger.info(`  Updated: ${stats.jobsUpdated}`);
+    logger.info(`  University Jobs: ${stats.universityJobsScraped}`);
     logger.info(`  Cleaned: ${stats.jobsCleaned}`);
     logger.info('');
 
