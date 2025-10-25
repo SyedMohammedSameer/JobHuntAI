@@ -4,7 +4,6 @@ import logger from '../utils/logger';
 
 interface CompletionOptions {
   maxTokens?: number;
-  temperature?: number;
   model?: string;
   retries?: number;
 }
@@ -24,13 +23,11 @@ class OpenAIService {
   private client: OpenAI | null = null;
   private defaultModel: string;
   private defaultMaxTokens: number;
-  private defaultTemperature: number;
 
   constructor() {
     // Don't initialize in constructor - do it in methods
-    this.defaultModel = process.env.OPENAI_MODEL || 'gpt-4-turbo-preview';
+    this.defaultModel = process.env.OPENAI_MODEL || 'gpt-5-mini';
     this.defaultMaxTokens = parseInt(process.env.OPENAI_MAX_TOKENS || '3000');
-    this.defaultTemperature = parseFloat(process.env.OPENAI_TEMPERATURE || '0.7');
   }
 
   /**
@@ -131,7 +128,6 @@ class OpenAIService {
 
     const {
       maxTokens = this.defaultMaxTokens,
-      temperature = this.defaultTemperature,
       model = this.defaultModel,
       retries = 3
     } = options;
@@ -143,7 +139,6 @@ class OpenAIService {
         logger.info(`OpenAI API call attempt ${attempt + 1}/${retries + 1}`, {
           model,
           maxTokens,
-          temperature,
           promptLength: prompt.length
         });
 
@@ -155,8 +150,7 @@ class OpenAIService {
               content: prompt
             }
           ],
-          max_tokens: maxTokens,
-          temperature: temperature,
+          max_completion_tokens: maxTokens,
         });
 
         const content = response.choices[0]?.message?.content || '';
@@ -247,7 +241,7 @@ class OpenAIService {
     try {
       const result = await this.generateCompletion(
         'Say "Hello" if you can hear me.',
-        { maxTokens: 10, temperature: 0 }
+        { maxTokens: 10}
       );
 
       return result.content.toLowerCase().includes('hello');
@@ -274,7 +268,6 @@ class OpenAIService {
 
     return this.generateCompletion(prompt, {
       maxTokens: 3000,
-      temperature: 0.7,
       model: this.defaultModel
     });
   }
@@ -295,7 +288,6 @@ class OpenAIService {
 
     return this.generateCompletion(prompt, {
       maxTokens: 1500,
-      temperature: 0.8, // Slightly higher for more creativity
       model: this.defaultModel
     });
   }

@@ -44,7 +44,6 @@ async function testOpenAIService() {
     const simplePrompt = 'Write a one-sentence professional summary for a software engineer with 3 years of experience.';
     const result = await openaiService.generateCompletion(simplePrompt, {
       maxTokens: 100,
-      temperature: 0.7
     });
 
     console.log('Prompt:', simplePrompt);

@@ -4,146 +4,87 @@ import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();
 
-// ==================== IMPORTANT: ROUTE ORDER MATTERS ====================
-// Specific routes (like /search, /filters, /stats) MUST come BEFORE parameterized routes (like /:id)
-// Otherwise Express will match /search to /:id and treat "search" as an ID parameter
+// ==================== ROUTE ORDER: SPECIFIC BEFORE PARAMETERIZED ====================
 
-// ==================== PUBLIC ROUTES (No Authentication) ====================
+// ==================== SPECIFIC ROUTES FIRST ====================
 
 /**
  * @route   GET /api/jobs/search
  * @desc    Search jobs with filters
- * @query   keyword, location, jobType, experienceLevel, visaSponsorship, page, limit, sort
  * @access  Public
- * 
- * MUST BE BEFORE /:id ROUTE!
  */
 router.get('/search', jobController.searchJobs);
 
 /**
- * @route   GET /api/jobs/filters
- * @desc    Get available filter options
- * @access  Public
- * 
- * MUST BE BEFORE /:id ROUTE!
+ * @route   GET /api/jobs/bookmarked/list
+ * @desc    Get user's bookmarked jobs
+ * @access  Private
  */
-router.get('/filters', jobController.getFilterOptions);
+router.get('/bookmarked/list', authenticateToken, jobController.getBookmarkedJobs);
+
+/**
+ * @route   GET /api/jobs/system/refresh-stats
+ * @desc    Get job refresh statistics
+ * @access  Public
+ */
+router.get('/system/refresh-stats', jobController.getRefreshStats);
+
+/**
+ * @route   GET /api/jobs/system/cleanup-stats
+ * @desc    Get cleanup statistics
+ * @access  Public
+ */
+router.get('/system/cleanup-stats', jobController.getCleanupStats);
 
 /**
  * @route   GET /api/jobs/stats
  * @desc    Get job statistics
  * @access  Public
- * 
- * MUST BE BEFORE /:id ROUTE!
  */
 router.get('/stats', jobController.getJobStats);
 
 /**
- * @route   GET /api/jobs/featured
- * @desc    Get featured jobs
- * @access  Public
- * 
- * MUST BE BEFORE /:id ROUTE!
+ * @route   POST /api/jobs/system/refresh
+ * @desc    Manually trigger job refresh
+ * @access  Private
  */
-router.get('/featured', jobController.getFeaturedJobs);
+router.post('/system/refresh', authenticateToken, jobController.triggerManualRefresh);
 
 /**
- * @route   GET /api/jobs
- * @desc    Get all jobs with pagination
- * @query   page, limit
- * @access  Public
+ * @route   POST /api/jobs/system/cleanup
+ * @desc    Manually trigger cleanup
+ * @access  Private
  */
-router.get('/', jobController.getAllJobs);
+router.post('/system/cleanup', authenticateToken, jobController.triggerCleanup);
+
+/**
+ * @route   POST /api/jobs/aggregate
+ * @desc    Manually trigger job aggregation
+ * @access  Private
+ */
+router.post('/aggregate', authenticateToken, jobController.triggerJobAggregation);
+
+// ==================== PARAMETERIZED ROUTES (MUST COME LAST) ====================
 
 /**
  * @route   GET /api/jobs/:id
  * @desc    Get single job by ID
  * @access  Public
- * 
- * MUST COME AFTER ALL SPECIFIC ROUTES!
  */
 router.get('/:id', jobController.getJobById);
 
-// ==================== PROTECTED ROUTES (Authentication Required) ====================
+/**
+ * @route   POST /api/jobs/:id/bookmark
+ * @desc    Bookmark or unbookmark a job (toggle)
+ * @access  Private
+ */
+router.post('/:id/bookmark', authenticateToken, jobController.bookmarkJob);
 
 /**
- * @route   GET /api/jobs/:id/similar
- * @desc    Get similar jobs
+ * @route   POST /api/jobs/:id/analyze-visa
+ * @desc    Analyze visa sponsorship for a specific job
  * @access  Public
- * 
- * MUST BE BEFORE OTHER /:id/action ROUTES IF THEY REQUIRE AUTH!
  */
-router.get('/:id/similar', jobController.getSimilarJobs);
-
-/**
- * @route   POST /api/jobs/:id/save
- * @desc    Save/bookmark a job
- * @access  Private
- */
-router.post('/:id/save', authenticateToken, jobController.saveJob);
-
-/**
- * @route   DELETE /api/jobs/:id/save
- * @desc    Unsave/remove bookmark from a job
- * @access  Private
- */
-router.delete('/:id/save', authenticateToken, jobController.unsaveJob);
-
-/**
- * @route   GET /api/jobs/saved/list
- * @desc    Get user's saved jobs
- * @access  Private
- * 
- * MUST BE BEFORE /:id ROUTE!
- */
-router.get('/saved/list', authenticateToken, jobController.getSavedJobs);
-
-/**
- * @route   POST /api/jobs/:id/apply
- * @desc    Track job application
- * @access  Private
- */
-router.post('/:id/apply', authenticateToken, jobController.applyToJob);
-
-/**
- * @route   GET /api/jobs/applications/list
- * @desc    Get user's job applications
- * @access  Private
- * 
- * MUST BE BEFORE /:id ROUTE!
- */
-router.get('/applications/list', authenticateToken, jobController.getApplications);
-
-/**
- * @route   PUT /api/jobs/applications/:applicationId
- * @desc    Update application status
- * @access  Private
- */
-router.put('/applications/:applicationId', authenticateToken, jobController.updateApplicationStatus);
-
-/**
- * @route   DELETE /api/jobs/applications/:applicationId
- * @desc    Delete application record
- * @access  Private
- */
-router.delete('/applications/:applicationId', authenticateToken, jobController.deleteApplication);
-
-/**
- * @route   POST /api/jobs/refresh
- * @desc    Manually trigger job refresh (admin only, but not enforced yet)
- * @access  Public (should be admin-only in production)
- * 
- * MUST BE BEFORE /:id ROUTE!
- */
-router.post('/refresh', jobController.manualRefresh);
-
-/**
- * @route   GET /api/jobs/user/recommendations
- * @desc    Get personalized job recommendations
- * @access  Private
- * 
- * MUST BE BEFORE /:id ROUTE!
- */
-router.get('/user/recommendations', authenticateToken, jobController.getRecommendations);
+router.post('/:id/analyze-visa', jobController.analyzeJobVisa);
 
 export default router;
