@@ -1,5 +1,5 @@
 // backend/src/server.ts
-// Complete Server Setup - Phase 2 with Cron Jobs
+// Complete Server Setup - Phase 3C (Resume + Cover Letter)
 
 import express, { Request, Response, NextFunction } from 'express';
 import dotenv from 'dotenv';
@@ -7,14 +7,17 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
+import multer from 'multer';
 import connectDB from './config/database';
 import logger from './utils/logger';
 
 // Import Routes
 import authRoutes from './routes/authRoutes';
 import jobRoutes from './routes/jobRoutes';
+import resumeRoutes from './routes/resumeRoutes';
+import coverLetterRoutes from './routes/coverLetterRoutes'; // NEW - Phase 3C Part 2
 
-// Import Cron Jobs (NEW - Phase 2)
+// Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
 
 // Load environment variables
@@ -78,6 +81,51 @@ app.get('/health', (req: Request, res: Response) => {
 // API Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
+app.use('/api/resumes', resumeRoutes);
+app.use('/api/cover-letters', coverLetterRoutes); // NEW - Phase 3C Part 2
+
+// ==================== ERROR HANDLERS ====================
+
+// Multer Error Handler (Phase 3C)
+// This must come BEFORE the 404 handler
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  // Handle Multer-specific errors
+  if (err instanceof multer.MulterError) {
+    if (err.code === 'LIMIT_FILE_SIZE') {
+      return res.status(400).json({
+        success: false,
+        message: 'File too large. Maximum size is 5MB.'
+      });
+    }
+    if (err.code === 'LIMIT_FILE_COUNT') {
+      return res.status(400).json({
+        success: false,
+        message: 'Too many files. Only 1 file allowed per upload.'
+      });
+    }
+    if (err.code === 'LIMIT_UNEXPECTED_FILE') {
+      return res.status(400).json({
+        success: false,
+        message: 'Unexpected field name. Use "resume" as the field name.'
+      });
+    }
+    return res.status(400).json({
+      success: false,
+      message: `File upload error: ${err.message}`
+    });
+  }
+
+  // Handle custom file filter errors
+  if (err.message && err.message.includes('Invalid file type')) {
+    return res.status(400).json({
+      success: false,
+      message: err.message
+    });
+  }
+
+  // Pass to next error handler if not a Multer error
+  next(err);
+});
 
 // 404 handler
 app.use((req: Request, res: Response) => {
@@ -99,7 +147,7 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   });
 });
 
-// ==================== CRON JOB INITIALIZATION (NEW - PHASE 2) ====================
+// ==================== CRON JOB INITIALIZATION ====================
 
 /**
  * Initialize automated job refresh cron
@@ -128,7 +176,7 @@ const startServer = async (): Promise<void> => {
     await connectDB();
     logger.info('✅ MongoDB connected successfully');
 
-    // Step 2: Initialize cron jobs (NEW - PHASE 2)
+    // Step 2: Initialize cron jobs
     logger.info('🔄 Initializing cron jobs...');
     initializeJobCron();
 
@@ -142,10 +190,12 @@ const startServer = async (): Promise<void> => {
       if (process.env.ENABLE_DAILY_JOB_REFRESH === 'true') {
         logger.info(`📅 Cron Schedule: ${process.env.JOB_REFRESH_CRON || '0 2 * * *'}`);
       }
+      logger.info(`📄 Resume API: ENABLED (Phase 3C)`);
+      logger.info(`✉️  Cover Letter API: ENABLED (Phase 3C)`); // NEW
       logger.info('═══════════════════════════════════════════════════');
     });
 
-    // ==================== GRACEFUL SHUTDOWN (NEW - PHASE 2) ====================
+    // ==================== GRACEFUL SHUTDOWN ====================
 
     /**
      * Graceful shutdown handler
