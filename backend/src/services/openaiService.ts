@@ -125,15 +125,15 @@ class OpenAIService {
     options: CompletionOptions = {}
   ): Promise<CompletionResult> {
     this.initializeClient();
-
+  
     const {
       maxTokens = this.defaultMaxTokens,
       model = this.defaultModel,
       retries = 3
     } = options;
-
+  
     let lastError: Error | null = null;
-
+  
     for (let attempt = 0; attempt <= retries; attempt++) {
       try {
         logger.info(`OpenAI API call attempt ${attempt + 1}/${retries + 1}`, {
@@ -141,7 +141,7 @@ class OpenAIService {
           maxTokens,
           promptLength: prompt.length
         });
-
+  
         const response = await this.client!.chat.completions.create({
           model: model,
           messages: [
@@ -152,57 +152,78 @@ class OpenAIService {
           ],
           max_completion_tokens: maxTokens,
         });
-
+  
+        // ADD DETAILED LOGGING HERE
+        logger.info('Raw OpenAI response:', {
+          hasChoices: !!response.choices,
+          choicesLength: response.choices?.length,
+          firstChoice: response.choices?.[0],
+          messageContent: response.choices?.[0]?.message?.content,
+          finishReason: response.choices?.[0]?.finish_reason
+        });
+  
         const content = response.choices[0]?.message?.content || '';
+  
+        // CHECK IF CONTENT IS EMPTY
+        if (!content || content.trim().length === 0) {
+          logger.error('OpenAI returned empty content!', {
+            response: JSON.stringify(response),
+            finishReason: response.choices?.[0]?.finish_reason
+          });
+          throw new Error('OpenAI returned empty content. This may be due to content filtering or model issues.');
+        }
+  
         const usage = response.usage;
-
+  
         if (!usage) {
           throw new Error('No usage information returned from OpenAI');
         }
-
+  
         const tokensUsed = {
           prompt: usage.prompt_tokens,
           completion: usage.completion_tokens,
           total: usage.total_tokens
         };
-
+  
         const estimatedCost = this.estimateCost(
           tokensUsed.prompt,
           tokensUsed.completion,
           model
         );
-
+  
         logger.info('OpenAI API call successful', {
           tokensUsed,
           estimatedCost,
-          model
+          model,
+          contentLength: content.length
         });
-
+  
         return {
           content,
           tokensUsed,
           estimatedCost,
           model
         };
-
+  
       } catch (error: any) {
         lastError = error;
         
         logger.error(`OpenAI API call failed (attempt ${attempt + 1})`, {
           error: error.message,
           status: error.status,
-          type: error.type
+          type: error.type,
+          stack: error.stack
         });
-
+  
         // Don't retry on certain errors
         if (error.status === 401 || error.status === 403) {
           throw new Error('OpenAI API authentication failed. Check your API key.');
         }
-
+  
         if (error.status === 400) {
           throw new Error(`Invalid request to OpenAI: ${error.message}`);
         }
-
+  
         // Rate limit error - wait longer
         if (error.status === 429) {
           const waitTime = Math.pow(2, attempt) * 2000; // 2s, 4s, 8s, 16s
@@ -210,7 +231,7 @@ class OpenAIService {
           await this.sleep(waitTime);
           continue;
         }
-
+  
         // Server error or network issue - retry with exponential backoff
         if (error.status >= 500 || error.code === 'ECONNRESET') {
           if (attempt < retries) {
@@ -220,14 +241,14 @@ class OpenAIService {
             continue;
           }
         }
-
+  
         // If it's the last attempt or non-retryable error, throw
         if (attempt === retries) {
           break;
         }
       }
     }
-
+  
     // If we've exhausted all retries, throw the last error
     throw new Error(
       `OpenAI API call failed after ${retries + 1} attempts: ${lastError?.message || 'Unknown error'}`
