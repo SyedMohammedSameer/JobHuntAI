@@ -15,7 +15,8 @@ import logger from './utils/logger';
 import authRoutes from './routes/authRoutes';
 import jobRoutes from './routes/jobRoutes';
 import resumeRoutes from './routes/resumeRoutes';
-import coverLetterRoutes from './routes/coverLetterRoutes'; // NEW - Phase 3C Part 2
+import coverLetterRoutes from './routes/coverLetterRoutes';
+import dashboardRoutes from './routes/dashboardRoutes';
 
 // Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
@@ -82,7 +83,8 @@ app.get('/health', (req: Request, res: Response) => {
 app.use('/api/auth', authRoutes);
 app.use('/api/jobs', jobRoutes);
 app.use('/api/resumes', resumeRoutes);
-app.use('/api/cover-letters', coverLetterRoutes); // NEW - Phase 3C Part 2
+app.use('/api/cover-letters', coverLetterRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 
 // ==================== ERROR HANDLERS ====================
 

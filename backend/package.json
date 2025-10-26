@@ -12,7 +12,9 @@
         "test:storage": "ts-node src/tests/testDocumentStorage.ts",
         "test:usage": "ts-node src/tests/testUsageTracking.ts",
         "test:resume-tailoring": "ts-node src/tests/testResumeTailoring.ts",
-        "test:cover-letter": "ts-node src/tests/testCoverLetter.ts"
+        "test:cover-letter": "ts-node src/tests/testCoverLetter.ts",
+        "test:dashboard": "ts-node src/tests/testDashboard.ts",
+        "test:application-tracking": "ts-node src/tests/testApplicationTracking.ts"
     },
     "dependencies": {
         "@types/multer": "^2.0.0",
