@@ -33,6 +33,9 @@ export const createApplication = async (req: Request, res: Response) => {
 
     logger.info('Creating application', { userId, jobId });
 
+    // Convert single interviewDate to array if provided
+    const interviewDates = interviewDate ? [new Date(interviewDate)] : undefined;
+
     const application = await applicationTrackingService.createApplication({
       userId,
       jobId,
@@ -40,7 +43,7 @@ export const createApplication = async (req: Request, res: Response) => {
       notes,
       resumeUsed,
       coverLetterUsed,
-      interviewDate: interviewDate ? new Date(interviewDate) : undefined,
+      interviewDates, // Use plural array
       reminderDate: reminderDate ? new Date(reminderDate) : undefined
     });
 
@@ -87,38 +90,48 @@ export const getApplications = async (req: Request, res: Response) => {
       });
     }
 
-    // Parse filters from query params
-    const filters: any = {};
-    if (req.query.status) filters.status = req.query.status;
-    if (req.query.jobId) filters.jobId = req.query.jobId;
-    if (req.query.search) filters.search = req.query.search;
-    if (req.query.startDate) filters.startDate = new Date(req.query.startDate as string);
-    if (req.query.endDate) filters.endDate = new Date(req.query.endDate as string);
+    const {
+      status,
+      jobId,
+      search,
+      startDate,
+      endDate,
+      page = '1',
+      limit = '10',
+      sortBy = 'appliedDate',
+      sortOrder = 'desc'
+    } = req.query;
 
-    // Parse pagination
-    const pagination: any = {};
-    if (req.query.page) pagination.page = parseInt(req.query.page as string);
-    if (req.query.limit) pagination.limit = parseInt(req.query.limit as string);
-    if (req.query.sortBy) pagination.sortBy = req.query.sortBy;
-    if (req.query.sortOrder) pagination.sortOrder = req.query.sortOrder;
-
-    logger.info('Fetching applications', { userId, filters, pagination });
+    logger.info('Fetching applications', { 
+      userId, 
+      filters: { status, jobId, search } 
+    });
 
     const result = await applicationTrackingService.getApplications(
       userId,
-      filters,
-      pagination
+      {
+        status: status as any, // Simple fix - use 'as any'
+        jobId: jobId as string,
+        search: search as string,
+        startDate: startDate ? new Date(startDate as string) : undefined,
+        endDate: endDate ? new Date(endDate as string) : undefined
+      },
+      {
+        page: parseInt(page as string),
+        limit: parseInt(limit as string),
+        sortBy: sortBy as string,
+        sortOrder: sortOrder as 'asc' | 'desc'
+      }
     );
 
-    logger.info('Applications fetched successfully', {
-      userId,
-      count: result.applications.length
+    logger.info('Applications fetched successfully', { 
+      userId, 
+      count: result.applications.length 
     });
 
     res.status(200).json({
       success: true,
-      data: result.applications,
-      pagination: result.pagination,
+      data: result,
       message: 'Applications retrieved successfully'
     });
   } catch (error: any) {
@@ -130,7 +143,7 @@ export const getApplications = async (req: Request, res: Response) => {
 
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch applications. Please try again later.',
+      message: error.message || 'Failed to fetch applications. Please try again later.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -204,13 +217,16 @@ export const updateApplication = async (req: Request, res: Response) => {
 
     logger.info('Updating application', { userId, applicationId: id });
 
+    // Convert single interviewDate to array if provided
+    const interviewDates = interviewDate ? [new Date(interviewDate)] : undefined;
+
     const application = await applicationTrackingService.updateApplicationStatus(
       id,
       userId,
       {
         status,
         notes,
-        interviewDate: interviewDate ? new Date(interviewDate) : undefined,
+        interviewDates, // Use plural array
         reminderDate: reminderDate ? new Date(reminderDate) : undefined,
         offerDetails
       }
@@ -235,9 +251,8 @@ export const updateApplication = async (req: Request, res: Response) => {
     });
 
     const statusCode = error.message.includes('not found') ? 404 
-      : error.message.includes('transition') ? 400 
-      : 500;
-
+      : error.message.includes('transition') ? 400 : 500;
+    
     res.status(statusCode).json({
       success: false,
       message: error.message || 'Failed to update application. Please try again later.',
@@ -266,16 +281,12 @@ export const deleteApplication = async (req: Request, res: Response) => {
 
     logger.info('Deleting application', { userId, applicationId: id });
 
-    const result = await applicationTrackingService.deleteApplication(id, userId);
+    await applicationTrackingService.deleteApplication(id, userId);
 
-    logger.info('Application deleted successfully', {
-      userId,
-      applicationId: id
-    });
+    logger.info('Application deleted successfully', { userId, applicationId: id });
 
     res.status(200).json({
       success: true,
-      data: result,
       message: 'Application deleted successfully'
     });
   } catch (error: any) {
@@ -317,18 +328,15 @@ export const getApplicationTimeline = async (req: Request, res: Response) => {
 
     const result = await applicationTrackingService.getApplicationTimeline(id, userId);
 
-    logger.info('Application timeline fetched successfully', {
-      userId,
-      applicationId: id
-    });
+    logger.info('Timeline fetched successfully', { userId, applicationId: id });
 
     res.status(200).json({
       success: true,
       data: result,
-      message: 'Application timeline retrieved successfully'
+      message: 'Timeline retrieved successfully'
     });
   } catch (error: any) {
-    logger.error('Error fetching application timeline', {
+    logger.error('Error fetching timeline', {
       userId: req.user?.userId,
       applicationId: req.params.id,
       error: error.message,
@@ -338,7 +346,7 @@ export const getApplicationTimeline = async (req: Request, res: Response) => {
     const statusCode = error.message.includes('not found') ? 404 : 500;
     res.status(statusCode).json({
       success: false,
-      message: error.message || 'Failed to fetch application timeline. Please try again later.',
+      message: error.message || 'Failed to fetch timeline. Please try again later.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -361,16 +369,18 @@ export const getUpcomingInterviews = async (req: Request, res: Response) => {
       });
     }
 
-    // Get days from query params (default: 30)
     const days = parseInt(req.query.days as string) || 30;
 
     logger.info('Fetching upcoming interviews', { userId, days });
 
-    const interviews = await applicationTrackingService.getUpcomingInterviews(userId, days);
-
-    logger.info('Upcoming interviews fetched successfully', {
+    const interviews = await applicationTrackingService.getUpcomingInterviews(
       userId,
-      count: interviews.length
+      days
+    );
+
+    logger.info('Upcoming interviews fetched successfully', { 
+      userId, 
+      count: interviews.length 
     });
 
     res.status(200).json({
@@ -391,7 +401,7 @@ export const getUpcomingInterviews = async (req: Request, res: Response) => {
 
     res.status(500).json({
       success: false,
-      message: 'Failed to fetch upcoming interviews. Please try again later.',
+      message: error.message || 'Failed to fetch upcoming interviews. Please try again later.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
@@ -418,15 +428,15 @@ export const getApplicationMetrics = async (req: Request, res: Response) => {
 
     const metrics = await applicationTrackingService.getApplicationMetrics(userId);
 
-    logger.info('Application metrics calculated successfully', { userId });
+    logger.info('Metrics calculated successfully', { userId });
 
     res.status(200).json({
       success: true,
       data: metrics,
-      message: 'Application metrics retrieved successfully'
+      message: 'Metrics retrieved successfully'
     });
   } catch (error: any) {
-    logger.error('Error calculating application metrics', {
+    logger.error('Error calculating metrics', {
       userId: req.user?.userId,
       error: error.message,
       stack: error.stack
@@ -434,7 +444,7 @@ export const getApplicationMetrics = async (req: Request, res: Response) => {
 
     res.status(500).json({
       success: false,
-      message: 'Failed to calculate application metrics. Please try again later.',
+      message: error.message || 'Failed to calculate metrics. Please try again later.',
       error: process.env.NODE_ENV === 'development' ? error.message : undefined
     });
   }
