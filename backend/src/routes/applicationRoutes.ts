@@ -11,12 +11,12 @@ import {
   getUpcomingInterviews,
   getApplicationMetrics
 } from '../controllers/applicationController';
-import { authenticate } from '../middlewares/auth';
+import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();
 
 // All application routes require authentication
-router.use(authenticate);
+router.use(authenticateToken);
 
 /**
  * @route   GET /api/applications/interviews/upcoming

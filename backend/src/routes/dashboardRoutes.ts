@@ -8,12 +8,12 @@ import {
   getVisaCountdown,
   getApplicationsByStatus
 } from '../controllers/dashboardController';
-import { authenticate } from '../middlewares/auth';
+import { authenticateToken } from '../middlewares/auth';
 
 const router = express.Router();
 
 // All dashboard routes require authentication
-router.use(authenticate);
+router.use(authenticateToken);
 
 /**
  * @route   GET /api/dashboard/stats

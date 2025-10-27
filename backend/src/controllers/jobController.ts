@@ -5,12 +5,14 @@ import { Request, Response } from 'express';
 import mongoose from 'mongoose';
 import Job from '../models/Job';
 import User from '../models/User';
+import Application from '../models/Application';
 import jobAggregator from '../services/jobAggregator';
 import dailyJobRefreshService from '../jobs/dailyJobRefresh';
 import jobCleanupService from '../services/jobCleanup';
 import visaDetectionService from '../services/visaDetection';
 import logger from '../utils/logger';
 import universityJobScraper from '../services/universityJobScraper';
+import recommendationService from '../services/recommendationService';
 
 // ==================== PHASE 1 & 2 CHUNK 1-2 METHODS ====================
 
@@ -748,6 +750,516 @@ export const getUniversityJobStats = async (req: Request, res: Response) => {
     res.status(500).json({
       success: false,
       message: 'Error getting university job statistics'
+    });
+  }
+};
+
+
+/**
+ * GET /api/jobs/saved/organized
+ * Get saved jobs organized by status (Applied, Interested, Not Interested)
+ * @access Private
+ */
+export const getOrganizedSavedJobs = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Get user with bookmarked jobs
+    const user = await User.findById(userId).populate('bookmarkedJobs');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Get all applications for this user
+    const applications = await Application.find({ 
+      userId: new mongoose.Types.ObjectId(userId) 
+    });
+
+    // Create a map of jobId -> application status
+    const applicationMap = new Map();
+    applications.forEach(app => {
+      applicationMap.set(app.jobId.toString(), app.status);
+    });
+
+    // Organize saved jobs
+    const organized = {
+      applied: [] as any[],
+      interested: [] as any[],
+      notInterested: [] as any[]
+    };
+
+    user.bookmarkedJobs.forEach((job: any) => {
+      const jobId = job._id.toString();
+      const appStatus = applicationMap.get(jobId);
+
+      if (appStatus && appStatus !== 'SAVED') {
+        organized.applied.push({
+          ...job.toObject(),
+          applicationStatus: appStatus
+        });
+      } else {
+        // For jobs without applications, consider them "interested"
+        organized.interested.push(job);
+      }
+    });
+
+    logger.info('Organized saved jobs retrieved', { 
+      userId,
+      applied: organized.applied.length,
+      interested: organized.interested.length
+    });
+
+    res.json({
+      success: true,
+      data: {
+        applied: organized.applied,
+        interested: organized.interested,
+        notInterested: organized.notInterested,
+        counts: {
+          applied: organized.applied.length,
+          interested: organized.interested.length,
+          notInterested: organized.notInterested.length,
+          total: user.bookmarkedJobs.length
+        }
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error getting organized saved jobs', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving organized saved jobs'
+    });
+  }
+};
+
+/**
+ * POST /api/jobs/saved/bulk-remove
+ * Remove multiple saved jobs at once
+ * @access Private
+ */
+export const bulkRemoveSavedJobs = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const { jobIds } = req.body;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    if (!jobIds || !Array.isArray(jobIds) || jobIds.length === 0) {
+      return res.status(400).json({
+        success: false,
+        message: 'Job IDs array is required'
+      });
+    }
+
+    // Get user
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Remove jobs from bookmarks
+    const initialCount = user.bookmarkedJobs.length;
+    user.bookmarkedJobs = user.bookmarkedJobs.filter(
+      (id: any) => !jobIds.includes(id.toString())
+    );
+    const removedCount = initialCount - user.bookmarkedJobs.length;
+
+    await user.save();
+
+    logger.info('Bulk removed saved jobs', { 
+      userId,
+      removedCount
+    });
+
+    res.json({
+      success: true,
+      message: `${removedCount} job(s) removed from saved jobs`,
+      data: {
+        removedCount,
+        remainingCount: user.bookmarkedJobs.length
+      }
+    });
+  } catch (error: any) {
+    logger.error('Error bulk removing saved jobs', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error removing saved jobs'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/saved/analytics
+ * Get analytics on saved jobs
+ * @access Private
+ */
+export const getSavedJobsAnalytics = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    // Get user with bookmarked jobs
+    const user = await User.findById(userId).populate('bookmarkedJobs');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    const savedJobs = user.bookmarkedJobs as any[];
+
+    if (savedJobs.length === 0) {
+      return res.json({
+        success: true,
+        data: {
+          totalSaved: 0,
+          analytics: null
+        }
+      });
+    }
+
+    // Analyze saved jobs
+    const analytics = {
+      totalSaved: savedJobs.length,
+      byEmploymentType: {} as Record<string, number>,
+      byLocation: {} as Record<string, number>,
+      byExperienceLevel: {} as Record<string, number>,
+      visaSponsorshipStats: {
+        h1b: 0,
+        opt: 0,
+        stemOpt: 0
+      },
+      salaryRange: {
+        min: Infinity,
+        max: -Infinity,
+        average: 0
+      },
+      topCompanies: [] as { company: string; count: number }[],
+      remoteJobs: 0
+    };
+
+    const companiesMap = new Map<string, number>();
+    let salarySum = 0;
+    let salaryCount = 0;
+
+    savedJobs.forEach((job: any) => {
+      // Employment type
+      analytics.byEmploymentType[job.employmentType] = 
+        (analytics.byEmploymentType[job.employmentType] || 0) + 1;
+
+      // Location
+      const location = job.location || 'Unknown';
+      analytics.byLocation[location] = (analytics.byLocation[location] || 0) + 1;
+
+      // Experience level
+      analytics.byExperienceLevel[job.experienceLevel] = 
+        (analytics.byExperienceLevel[job.experienceLevel] || 0) + 1;
+
+      // Visa sponsorship
+      if (job.visaSponsorship?.h1b) analytics.visaSponsorshipStats.h1b++;
+      if (job.visaSponsorship?.opt) analytics.visaSponsorshipStats.opt++;
+      if (job.visaSponsorship?.stemOpt) analytics.visaSponsorshipStats.stemOpt++;
+
+      // Salary
+      if (job.salaryMin && job.salaryMax) {
+        const avgSalary = (job.salaryMin + job.salaryMax) / 2;
+        salarySum += avgSalary;
+        salaryCount++;
+        analytics.salaryRange.min = Math.min(analytics.salaryRange.min, job.salaryMin);
+        analytics.salaryRange.max = Math.max(analytics.salaryRange.max, job.salaryMax);
+      }
+
+      // Companies
+      companiesMap.set(job.company, (companiesMap.get(job.company) || 0) + 1);
+
+      // Remote
+      if (job.remote) analytics.remoteJobs++;
+    });
+
+    // Calculate average salary
+    analytics.salaryRange.average = salaryCount > 0 
+      ? Math.round(salarySum / salaryCount) 
+      : 0;
+
+    // Reset min/max if no salaries found
+    if (analytics.salaryRange.min === Infinity) {
+      analytics.salaryRange.min = 0;
+    }
+    if (analytics.salaryRange.max === -Infinity) {
+      analytics.salaryRange.max = 0;
+    }
+
+    // Top companies
+    analytics.topCompanies = Array.from(companiesMap.entries())
+      .map(([company, count]) => ({ company, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
+    logger.info('Saved jobs analytics calculated', { userId });
+
+    res.json({
+      success: true,
+      data: analytics
+    });
+  } catch (error: any) {
+    logger.error('Error calculating saved jobs analytics', {
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error calculating analytics'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/recommendations/personalized
+ * Get personalized job recommendations
+ * @access Private
+ */
+export const getPersonalizedRecommendations = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    const limit = Math.min(parseInt(req.query.limit as string) || 20, 50);
+
+    logger.info('Getting personalized recommendations', { userId, limit });
+
+    const recommendations = await recommendationService.getPersonalizedRecommendations(userId, limit);
+
+    logger.info('Personalized recommendations retrieved', { 
+      userId, 
+      count: recommendations.length 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        recommendations,
+        count: recommendations.length
+      },
+      message: 'Personalized recommendations retrieved successfully'
+    });
+  } catch (error: any) {
+    logger.error('Error getting personalized recommendations', {
+      userId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving recommendations'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/recommendations/daily
+ * Get daily top picks
+ * @access Private
+ */
+export const getDailyRecommendations = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    logger.info('Getting daily recommendations', { userId });
+
+    const recommendations = await recommendationService.getDailyRecommendations(userId);
+
+    logger.info('Daily recommendations retrieved', { 
+      userId, 
+      count: recommendations.length 
+    });
+
+    res.json({
+      success: true,
+      data: {
+        recommendations,
+        count: recommendations.length,
+        date: new Date().toISOString().split('T')[0]
+      },
+      message: 'Daily recommendations retrieved successfully'
+    });
+  } catch (error: any) {
+    logger.error('Error getting daily recommendations', {
+      userId: req.user?.userId,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving daily recommendations'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/:id/match-score
+ * Get match score for a specific job
+ * @access Private
+ */
+export const getJobMatchScore = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const jobId = req.params.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    logger.info('Calculating job match score', { userId, jobId });
+
+    const match = await recommendationService.getJobMatchBreakdown(userId, jobId);
+
+    logger.info('Job match score calculated', { userId, jobId });
+
+    res.json({
+      success: true,
+      data: {
+        jobId,
+        matchScore: match.matchScore,
+        matchReasons: match.matchReasons
+      },
+      message: 'Match score calculated successfully'
+    });
+  } catch (error: any) {
+    logger.error('Error calculating job match score', {
+      userId: req.user?.userId,
+      jobId: req.params.id,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error calculating match score'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/:id/match-breakdown
+ * Get detailed match breakdown for a specific job
+ * @access Private
+ */
+export const getJobMatchBreakdown = async (req: Request, res: Response) => {
+  try {
+    const userId = req.user?.userId;
+    const jobId = req.params.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        message: 'Authentication required'
+      });
+    }
+
+    logger.info('Getting job match breakdown', { userId, jobId });
+
+    const match = await recommendationService.getJobMatchBreakdown(userId, jobId);
+
+    logger.info('Job match breakdown retrieved', { userId, jobId });
+
+    res.json({
+      success: true,
+      data: match,
+      message: 'Match breakdown retrieved successfully'
+    });
+  } catch (error: any) {
+    logger.error('Error getting job match breakdown', {
+      userId: req.user?.userId,
+      jobId: req.params.id,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving match breakdown'
+    });
+  }
+};
+
+/**
+ * GET /api/jobs/:id/similar
+ * Get similar jobs
+ * @access Public
+ */
+export const getSimilarJobs = async (req: Request, res: Response) => {
+  try {
+    const jobId = req.params.id;
+    const limit = Math.min(parseInt(req.query.limit as string) || 10, 20);
+
+    logger.info('Getting similar jobs', { jobId, limit });
+
+    const similarJobs = await recommendationService.getSimilarJobs(jobId, limit);
+
+    logger.info('Similar jobs retrieved', { jobId, count: similarJobs.length });
+
+    res.json({
+      success: true,
+      data: {
+        jobs: similarJobs,
+        count: similarJobs.length
+      },
+      message: 'Similar jobs retrieved successfully'
+    });
+  } catch (error: any) {
+    logger.error('Error getting similar jobs', {
+      jobId: req.params.id,
+      error: error.message,
+      stack: error.stack
+    });
+    res.status(500).json({
+      success: false,
+      message: 'Error retrieving similar jobs'
     });
   }
 };

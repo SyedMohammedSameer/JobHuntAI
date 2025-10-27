@@ -64,6 +64,41 @@ router.post('/system/cleanup', authenticateToken, jobController.triggerCleanup);
  */
 router.post('/aggregate', authenticateToken, jobController.triggerJobAggregation);
 
+/**
+ * @route   GET /api/jobs/recommendations/personalized
+ * @desc    Get personalized job recommendations
+ * @access  Private
+ */
+router.get('/recommendations/personalized', authenticateToken, jobController.getPersonalizedRecommendations);
+
+/**
+ * @route   GET /api/jobs/recommendations/daily
+ * @desc    Get daily top picks
+ * @access  Private
+ */
+router.get('/recommendations/daily', authenticateToken, jobController.getDailyRecommendations);
+
+/**
+ * @route   GET /api/jobs/saved/organized
+ * @desc    Get saved jobs organized by status
+ * @access  Private
+ */
+router.get('/saved/organized', authenticateToken, jobController.getOrganizedSavedJobs);
+
+/**
+ * @route   GET /api/jobs/saved/analytics
+ * @desc    Get analytics on saved jobs
+ * @access  Private
+ */
+router.get('/saved/analytics', authenticateToken, jobController.getSavedJobsAnalytics);
+
+/**
+ * @route   POST /api/jobs/saved/bulk-remove
+ * @desc    Remove multiple saved jobs at once
+ * @access  Private
+ */
+router.post('/saved/bulk-remove', authenticateToken, jobController.bulkRemoveSavedJobs);
+
 // ==================== PARAMETERIZED ROUTES (MUST COME LAST) ====================
 
 /**
@@ -86,5 +121,26 @@ router.post('/:id/bookmark', authenticateToken, jobController.bookmarkJob);
  * @access  Public
  */
 router.post('/:id/analyze-visa', jobController.analyzeJobVisa);
+
+/**
+ * @route   GET /api/jobs/:id/match-score
+ * @desc    Get match score for a specific job
+ * @access  Private
+ */
+router.get('/:id/match-score', authenticateToken, jobController.getJobMatchScore);
+
+/**
+ * @route   GET /api/jobs/:id/match-breakdown
+ * @desc    Get detailed match breakdown for a specific job
+ * @access  Private
+ */
+router.get('/:id/match-breakdown', authenticateToken, jobController.getJobMatchBreakdown);
+
+/**
+ * @route   GET /api/jobs/:id/similar
+ * @desc    Get similar jobs
+ * @access  Public
+ */
+router.get('/:id/similar', jobController.getSimilarJobs);
 
 export default router;

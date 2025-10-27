@@ -17,7 +17,8 @@ import jobRoutes from './routes/jobRoutes';
 import resumeRoutes from './routes/resumeRoutes';
 import coverLetterRoutes from './routes/coverLetterRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
-
+import applicationRoutes from './routes/applicationRoutes';
+import profileRoutes from './routes/profileRoutes';
 // Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
 
@@ -85,6 +86,8 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/resumes', resumeRoutes);
 app.use('/api/cover-letters', coverLetterRoutes);
 app.use('/api/dashboard', dashboardRoutes);
+app.use('/api/applications', applicationRoutes);
+app.use('/api/profile', profileRoutes);
 
 // ==================== ERROR HANDLERS ====================
 
