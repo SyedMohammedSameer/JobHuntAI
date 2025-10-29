@@ -1,5 +1,9 @@
 // backend/src/services/stripeService.ts
+import dotenv from 'dotenv';
+import path from 'path';
 
+// Load .env BEFORE anything else
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 import Stripe from 'stripe';
 import logger from '../utils/logger';
 import User from '../models/User';
@@ -42,7 +46,7 @@ class StripeService {
         customerId = customer.id;
 
         // Update user with customer ID - initialize complete subscription object
-        user.subscription = user.subscription || {
+        user.subscription = user.subscription || ({
           plan: 'FREE',
           status: 'active',
           cancelAtPeriodEnd: false,
@@ -54,7 +58,7 @@ class StripeService {
             advancedAnalytics: false,
             emailAlerts: false,
           },
-        };
+        } as any);
         user.subscription.stripeCustomerId = customerId;
         await user.save();
 

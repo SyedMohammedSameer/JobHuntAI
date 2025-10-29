@@ -48,6 +48,14 @@ export interface IUser extends Document {
     endDate?: Date;
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
+    status: {
+      type: String,
+      enum: ['active', 'canceled', 'past_due', 'trialing'],
+      default: 'active',
+    },
+    currentPeriodStart: { type: Date },
+    currentPeriodEnd: { type: Date },
+    cancelAtPeriodEnd: { type: Boolean, default: false },
     features: {
       maxResumeTailoring: number;
       maxCoverLetters: number;
@@ -258,5 +266,7 @@ UserSchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
+UserSchema.index({ 'subscription.stripeCustomerId': 1 });
+UserSchema.index({ 'subscription.stripeSubscriptionId': 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

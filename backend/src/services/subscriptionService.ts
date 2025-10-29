@@ -1,5 +1,9 @@
 // backend/src/services/subscriptionService.ts
+import dotenv from 'dotenv';
+import path from 'path';
 
+// Load .env BEFORE anything else
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 import logger from '../utils/logger';
 import User from '../models/User';
 import stripeService from './stripeService';
