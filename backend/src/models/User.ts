@@ -1,92 +1,63 @@
-// backend/src/models/User.ts - Phase 3A Updated
+// backend/src/models/User.ts
+// COMPLETE USER MODEL - PHASE 5 READY
 
-import mongoose, { Document, Schema } from 'mongoose';
-import bcrypt from 'bcryptjs';
+import mongoose, { Schema, Document } from 'mongoose';
 
-// User interface for Phase 3A+
 export interface IUser extends Document {
-  // Basic Info
   email: string;
   password: string;
   firstName: string;
   lastName: string;
-  profilePicture?: string;
-  
-  // Profile Info
-  university?: string;
-  major?: string;
-  graduationYear?: number;
-  currentYear?: 'Freshman' | 'Sophomore' | 'Junior' | 'Senior' | 'Graduate';
-  graduationDate?: Date;
-  degreeType?: string;
-  
-  // Visa/Work Status
-  visaType?: 'F1' | 'OPT' | 'STEM_OPT' | 'H1B' | 'GREEN_CARD' | 'CITIZEN' | 'OTHER';
+  university: string;
+  major: string;
+  graduationYear: number;
+  visaType: 'F1' | 'J1' | 'H1B' | 'OPT' | 'STEM_OPT' | 'OTHER';
   visaExpiryDate?: Date;
-  optStartDate?: Date;
-  optEndDate?: Date;
-  workAuthorization?: string;
-  
-  // AI Usage Tracking (Phase 3A)
+  jobPreferences: {
+    desiredJobTitles: string[];
+    desiredLocations: string[];
+    desiredSalaryMin?: number;
+    desiredSalaryMax?: number;
+    jobTypes: ('FULL_TIME' | 'PART_TIME' | 'CONTRACT' | 'INTERNSHIP')[];
+    remotePreference: 'REMOTE' | 'HYBRID' | 'ONSITE' | 'ANY';
+    industryPreferences: string[];
+    skillsToHighlight: string[];
+  };
+  bookmarkedJobs: mongoose.Types.ObjectId[];
   aiUsage: {
     resumeTailoring: {
       count: number;
       lastReset: Date;
-      lastUsed: Date | null;
     };
     coverLetterGeneration: {
       count: number;
       lastReset: Date;
-      lastUsed: Date | null;
     };
   };
-  
-  // Subscription (Phase 3A)
   subscription: {
     plan: 'FREE' | 'PREMIUM';
+    status: 'active' | 'canceled' | 'past_due' | 'trialing';
     startDate?: Date;
     endDate?: Date;
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
+    currentPeriodStart?: Date;
+    currentPeriodEnd?: Date;
+    cancelAtPeriodEnd: boolean;
     features: {
       maxResumeTailoring: number;
       maxCoverLetters: number;
       aiPriority: boolean;
       unlimitedBookmarks: boolean;
+      advancedAnalytics: boolean;
+      emailAlerts: boolean;
     };
   };
-  
-  // Job Preferences
-  jobPreferences?: {
-    jobTypes?: string[];
-    locations?: string[];
-    remoteOnly?: boolean;
-    visaSponsorshipRequired?: boolean;
-    salaryMin?: number;
-    salaryMax?: number;
-  };
-  
-  // Bookmarked Jobs
-  bookmarkedJobs: mongoose.Types.ObjectId[];
-  
-  // Account
-  isEmailVerified: boolean;
-  isActive: boolean;
-  lastLogin?: Date;
-  
-  // OAuth
-  googleId?: string;
-  linkedinId?: string;
-  
-  // Timestamps
+  profileCompleteness: number;
   createdAt: Date;
   updatedAt: Date;
-  
-  // Methods
-  comparePassword(candidatePassword: string): Promise<boolean>;
 }
 
-// User schema
 const UserSchema: Schema = new Schema(
   {
     email: {
@@ -95,6 +66,7 @@ const UserSchema: Schema = new Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      match: [/^\S+@\S+\.\S+$/, 'Please enter a valid email address'],
     },
     password: {
       type: String,
@@ -111,30 +83,71 @@ const UserSchema: Schema = new Schema(
       required: true,
       trim: true,
     },
-    profilePicture: String,
-    
-    // Profile Info
-    university: String,
-    major: String,
-    graduationYear: Number,
-    currentYear: {
+    university: {
       type: String,
-      enum: ['Freshman', 'Sophomore', 'Junior', 'Senior', 'Graduate'],
+      required: true,
+      trim: true,
     },
-    graduationDate: Date,
-    degreeType: String,
-    
-    // Visa/Work Status
+    major: {
+      type: String,
+      required: true,
+      trim: true,
+    },
+    graduationYear: {
+      type: Number,
+      required: true,
+      min: 2020,
+      max: 2030,
+    },
     visaType: {
       type: String,
-      enum: ['F1', 'OPT', 'STEM_OPT', 'H1B', 'GREEN_CARD', 'CITIZEN', 'OTHER'],
+      enum: ['F1', 'J1', 'H1B', 'OPT', 'STEM_OPT', 'OTHER'],
+      required: true,
     },
-    visaExpiryDate: Date,
-    optStartDate: Date,
-    optEndDate: Date,
-    workAuthorization: String,
-    
-    // AI Usage Tracking (Phase 3A)
+    visaExpiryDate: {
+      type: Date,
+    },
+    jobPreferences: {
+      desiredJobTitles: {
+        type: [String],
+        default: [],
+      },
+      desiredLocations: {
+        type: [String],
+        default: [],
+      },
+      desiredSalaryMin: {
+        type: Number,
+        min: 0,
+      },
+      desiredSalaryMax: {
+        type: Number,
+        min: 0,
+      },
+      jobTypes: {
+        type: [String],
+        enum: ['FULL_TIME', 'PART_TIME', 'CONTRACT', 'INTERNSHIP'],
+        default: ['FULL_TIME'],
+      },
+      remotePreference: {
+        type: String,
+        enum: ['REMOTE', 'HYBRID', 'ONSITE', 'ANY'],
+        default: 'ANY',
+      },
+      industryPreferences: {
+        type: [String],
+        default: [],
+      },
+      skillsToHighlight: {
+        type: [String],
+        default: [],
+      },
+    },
+    bookmarkedJobs: {
+      type: [mongoose.Schema.Types.ObjectId],
+      ref: 'Job',
+      default: [],
+    },
     aiUsage: {
       resumeTailoring: {
         count: {
@@ -144,10 +157,6 @@ const UserSchema: Schema = new Schema(
         lastReset: {
           type: Date,
           default: Date.now,
-        },
-        lastUsed: {
-          type: Date,
-          default: null,
         },
       },
       coverLetterGeneration: {
@@ -159,32 +168,49 @@ const UserSchema: Schema = new Schema(
           type: Date,
           default: Date.now,
         },
-        lastUsed: {
-          type: Date,
-          default: null,
-        },
       },
     },
-    
-    // Subscription (Phase 3A)
     subscription: {
       plan: {
         type: String,
         enum: ['FREE', 'PREMIUM'],
         default: 'FREE',
       },
-      startDate: Date,
-      endDate: Date,
-      stripeCustomerId: String,
-      stripeSubscriptionId: String,
+      status: {
+        type: String,
+        enum: ['active', 'canceled', 'past_due', 'trialing'],
+        default: 'active',
+      },
+      startDate: {
+        type: Date,
+      },
+      endDate: {
+        type: Date,
+      },
+      stripeCustomerId: {
+        type: String,
+      },
+      stripeSubscriptionId: {
+        type: String,
+      },
+      currentPeriodStart: {
+        type: Date,
+      },
+      currentPeriodEnd: {
+        type: Date,
+      },
+      cancelAtPeriodEnd: {
+        type: Boolean,
+        default: false,
+      },
       features: {
         maxResumeTailoring: {
           type: Number,
-          default: 3, // FREE tier default
+          default: 3,
         },
         maxCoverLetters: {
           type: Number,
-          default: 3, // FREE tier default
+          default: 3,
         },
         aiPriority: {
           type: Boolean,
@@ -194,69 +220,31 @@ const UserSchema: Schema = new Schema(
           type: Boolean,
           default: false,
         },
+        advancedAnalytics: {
+          type: Boolean,
+          default: false,
+        },
+        emailAlerts: {
+          type: Boolean,
+          default: false,
+        },
       },
     },
-    
-    // Job Preferences
-    jobPreferences: {
-      jobTypes: [String],
-      locations: [String],
-      remoteOnly: Boolean,
-      visaSponsorshipRequired: Boolean,
-      salaryMin: Number,
-      salaryMax: Number,
+    profileCompleteness: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: 100,
     },
-    
-    // Bookmarked Jobs
-    bookmarkedJobs: [{
-      type: Schema.Types.ObjectId,
-      ref: 'Job',
-    }],
-    
-    // Account
-    isEmailVerified: {
-      type: Boolean,
-      default: false,
-    },
-    isActive: {
-      type: Boolean,
-      default: true,
-    },
-    lastLogin: Date,
-    
-    // OAuth
-    googleId: String,
-    linkedinId: String,
   },
   {
     timestamps: true,
   }
 );
 
-// Indexes for performance
+// Indexes
 UserSchema.index({ email: 1 });
-UserSchema.index({ 'subscription.plan': 1 });
-UserSchema.index({ googleId: 1 });
-UserSchema.index({ linkedinId: 1 });
-
-// Hash password before saving
-UserSchema.pre('save', async function (next) {
-  if (!this.isModified('password') || !this.password) return next();
-  
-  try {
-    const salt = await bcrypt.genSalt(12);
-    this.password = await bcrypt.hash(this.password as string, salt);
-    next();
-  } catch (error: any) {
-    next(error);
-  }
-});
-
-// Method to compare password
-UserSchema.methods.comparePassword = async function (
-  candidatePassword: string
-): Promise<boolean> {
-  return bcrypt.compare(candidatePassword, this.password);
-};
+UserSchema.index({ 'subscription.stripeCustomerId': 1 });
+UserSchema.index({ 'subscription.stripeSubscriptionId': 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);

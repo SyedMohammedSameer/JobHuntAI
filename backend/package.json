@@ -17,7 +17,9 @@
         "test:application-tracking": "ts-node src/tests/testApplicationTracking.ts",
         "test:profile": "ts-node src/tests/testProfileService.ts",
         "test:recommendations": "ts-node src/tests/testRecommendations.ts",
-        "test:stripe":"ts-node src/tests/testStripe.ts"
+        "test:stripe": "ts-node src/tests/testStripe.ts",
+        "test:webhooks": "ts-node src/tests/testWebhooks.ts",
+        "test:phase5": "npm run test:stripe && npm run test:webhooks"  
     },
     "dependencies": {
         "@types/multer": "^2.0.0",

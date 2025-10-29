@@ -19,6 +19,9 @@ import coverLetterRoutes from './routes/coverLetterRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import applicationRoutes from './routes/applicationRoutes';
 import profileRoutes from './routes/profileRoutes';
+import webhookRoutes from './routes/webhookRoutes'; 
+import paymentRoutes from './routes/paymentRoutes';
+import subscriptionRoutes from './routes/subscriptionRoutes';
 // Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
 
@@ -32,6 +35,13 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
+
+
+// ========================================
+// CRITICAL: Webhook routes MUST come BEFORE body parsers
+// Stripe needs raw body for signature verification
+// ========================================
+app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
 
 // ==================== MIDDLEWARE ====================
 
@@ -88,7 +98,8 @@ app.use('/api/cover-letters', coverLetterRoutes);
 app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/applications', applicationRoutes);
 app.use('/api/profile', profileRoutes);
-
+app.use('/api/payment', paymentRoutes);
+app.use('/api/subscription', subscriptionRoutes);
 // ==================== ERROR HANDLERS ====================
 
 // Multer Error Handler (Phase 3C)
@@ -264,7 +275,7 @@ const startServer = async (): Promise<void> => {
 // Only start server if this file is run directly (not imported)
 if (require.main === module) {
   startServer();
-}
+} 
 
 // Export app for testing
 export default app;

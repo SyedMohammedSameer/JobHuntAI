@@ -41,14 +41,18 @@ class StripeService {
         const customer = await this.createCustomer(user);
         customerId = customer.id;
 
-        // Update user with customer ID
+        // Update user with customer ID - initialize complete subscription object
         user.subscription = user.subscription || {
           plan: 'FREE',
+          status: 'active',
+          cancelAtPeriodEnd: false,
           features: {
             maxResumeTailoring: 3,
             maxCoverLetters: 3,
             aiPriority: false,
             unlimitedBookmarks: false,
+            advancedAnalytics: false,
+            emailAlerts: false,
           },
         };
         user.subscription.stripeCustomerId = customerId;
@@ -200,7 +204,7 @@ class StripeService {
 
       const customer = await stripe.customers.create({
         email: user.email,
-        name: user.fullName,
+        name: `${user.firstName} ${user.lastName}`,
         metadata: {
           userId: user._id.toString(),
         },

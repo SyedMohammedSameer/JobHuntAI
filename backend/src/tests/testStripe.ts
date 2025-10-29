@@ -78,11 +78,15 @@ async function testStripeSetup() {
     // Update user with customer ID
     testUser.subscription = testUser.subscription || {
       plan: 'FREE',
+      status: 'active',
+      cancelAtPeriodEnd: false,
       features: {
         maxResumeTailoring: 3,
         maxCoverLetters: 3,
         aiPriority: false,
         unlimitedBookmarks: false,
+        advancedAnalytics: false,
+        emailAlerts: false,
       },
     };
     testUser.subscription.stripeCustomerId = customer.id;
