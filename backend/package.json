@@ -16,7 +16,8 @@
         "test:dashboard": "ts-node src/tests/testDashboard.ts",
         "test:application-tracking": "ts-node src/tests/testApplicationTracking.ts",
         "test:profile": "ts-node src/tests/testProfileService.ts",
-        "test:recommendations": "ts-node src/tests/testRecommendations.ts"
+        "test:recommendations": "ts-node src/tests/testRecommendations.ts",
+        "test:stripe":"ts-node src/tests/testStripe.ts"
     },
     "dependencies": {
         "@types/multer": "^2.0.0",
@@ -37,6 +38,7 @@
         "node-cron": "^3.0.3",
         "openai": "^6.6.0",
         "pdf-parse": "^1.1.1",
+        "stripe": "^19.1.0",
         "tiktoken": "^1.0.22",
         "winston": "^3.11.0"
     },
@@ -49,6 +51,7 @@
         "@types/node": "^20.19.23",
         "@types/node-cron": "^3.0.11",
         "@types/pdf-parse": "^1.1.5",
+        "@types/stripe": "^8.0.416",
         "nodemon": "^3.0.2",
         "ts-node": "^10.9.1",
         "typescript": "^5.3.2"
