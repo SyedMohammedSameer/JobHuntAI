@@ -177,10 +177,11 @@ class SubscriptionService {
         user.subscription.stripeSubscriptionId
       );
 
-      // Update user record
-      user.subscription.status = 'canceled' as any;
+      // Update user record - ONLY update status and cancelAtPeriodEnd
+      // DO NOT update currentPeriodEnd as it's already set correctly
       user.subscription.cancelAtPeriodEnd = true;
-      user.subscription.currentPeriodEnd = new Date((subscription as any).current_period_end * 1000);
+      // Note: We're NOT changing the plan or status yet
+      // User keeps PREMIUM until currentPeriodEnd
 
       await user.save();
 

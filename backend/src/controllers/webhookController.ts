@@ -314,11 +314,11 @@ class WebhookController {
     logger.info('Processing invoice payment succeeded', {
       invoiceId: invoice.id,
       customerId: invoice.customer,
-      subscriptionId: invoice.subscription,
+      subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
     });
 
     try {
-      if (!invoice.subscription) {
+      if (!(invoice as any).subscription) { // TYPE ASSERTION FIX
         logger.warn('Invoice has no subscription', {
           invoiceId: invoice.id,
         });
@@ -327,13 +327,13 @@ class WebhookController {
 
       // Find user by Stripe subscription ID
       const user = await User.findOne({
-        'subscription.stripeSubscriptionId': invoice.subscription,
+        'subscription.stripeSubscriptionId': (invoice as any).subscription, // TYPE ASSERTION FIX
       });
 
       if (!user) {
         logger.error('User not found for invoice payment', {
           invoiceId: invoice.id,
-          subscriptionId: invoice.subscription,
+          subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
         });
         return;
       }
@@ -344,7 +344,7 @@ class WebhookController {
       logger.info('Subscription synced after successful payment', {
         userId: user._id,
         invoiceId: invoice.id,
-        subscriptionId: invoice.subscription,
+        subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
       });
     } catch (error: any) {
       logger.error('Failed to process invoice payment succeeded', {
@@ -366,11 +366,11 @@ class WebhookController {
     logger.info('Processing invoice payment failed', {
       invoiceId: invoice.id,
       customerId: invoice.customer,
-      subscriptionId: invoice.subscription,
+      subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
     });
 
     try {
-      if (!invoice.subscription) {
+      if (!(invoice as any).subscription) { // TYPE ASSERTION FIX
         logger.warn('Invoice has no subscription', {
           invoiceId: invoice.id,
         });
@@ -379,13 +379,13 @@ class WebhookController {
 
       // Find user by Stripe subscription ID
       const user = await User.findOne({
-        'subscription.stripeSubscriptionId': invoice.subscription,
+        'subscription.stripeSubscriptionId': (invoice as any).subscription, // TYPE ASSERTION FIX
       });
 
       if (!user) {
         logger.error('User not found for failed payment', {
           invoiceId: invoice.id,
-          subscriptionId: invoice.subscription,
+          subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
         });
         return;
       }
@@ -399,7 +399,7 @@ class WebhookController {
       logger.warn('User subscription marked as past_due', {
         userId: user._id,
         invoiceId: invoice.id,
-        subscriptionId: invoice.subscription,
+        subscriptionId: (invoice as any).subscription, // TYPE ASSERTION FIX
       });
 
       // TODO: Send email notification to user about failed payment

@@ -1,9 +1,9 @@
-// backend/src/models/User.ts - Phase 3A Updated
+// backend/src/models/User.ts - Phase 5 Complete
 
 import mongoose, { Document, Schema } from 'mongoose';
 import bcrypt from 'bcryptjs';
 
-// User interface for Phase 3A+
+// User interface for Phase 5
 export interface IUser extends Document {
   // Basic Info
   email: string;
@@ -27,7 +27,7 @@ export interface IUser extends Document {
   optEndDate?: Date;
   workAuthorization?: string;
   
-  // AI Usage Tracking (Phase 3A)
+  // AI Usage Tracking
   aiUsage: {
     resumeTailoring: {
       count: number;
@@ -41,26 +41,24 @@ export interface IUser extends Document {
     };
   };
   
-  // Subscription (Phase 3A)
+  // Subscription (Phase 5 - UPDATED)
   subscription: {
     plan: 'FREE' | 'PREMIUM';
+    status?: 'active' | 'canceled' | 'past_due' | 'trialing'; // NEW
     startDate?: Date;
     endDate?: Date;
     stripeCustomerId?: string;
     stripeSubscriptionId?: string;
-    status: {
-      type: String,
-      enum: ['active', 'canceled', 'past_due', 'trialing'],
-      default: 'active',
-    },
-    currentPeriodStart: { type: Date },
-    currentPeriodEnd: { type: Date },
-    cancelAtPeriodEnd: { type: Boolean, default: false },
+    currentPeriodStart?: Date; // NEW
+    currentPeriodEnd?: Date;   // NEW
+    cancelAtPeriodEnd?: boolean; // NEW
     features: {
       maxResumeTailoring: number;
       maxCoverLetters: number;
       aiPriority: boolean;
       unlimitedBookmarks: boolean;
+      advancedAnalytics?: boolean; // NEW
+      emailAlerts?: boolean;       // NEW
     };
   };
   
@@ -97,6 +95,7 @@ export interface IUser extends Document {
 // User schema
 const UserSchema: Schema = new Schema(
   {
+    // Basic Info
     email: {
       type: String,
       required: true,
@@ -107,7 +106,7 @@ const UserSchema: Schema = new Schema(
     password: {
       type: String,
       required: true,
-      minlength: 6,
+      select: false,
     },
     firstName: {
       type: String,
@@ -142,7 +141,7 @@ const UserSchema: Schema = new Schema(
     optEndDate: Date,
     workAuthorization: String,
     
-    // AI Usage Tracking (Phase 3A)
+    // AI Usage Tracking
     aiUsage: {
       resumeTailoring: {
         count: {
@@ -174,31 +173,50 @@ const UserSchema: Schema = new Schema(
       },
     },
     
-    // Subscription (Phase 3A)
+    // Subscription (Phase 5)
     subscription: {
       plan: {
         type: String,
         enum: ['FREE', 'PREMIUM'],
         default: 'FREE',
       },
+      status: {
+        type: String,
+        enum: ['active', 'canceled', 'past_due', 'trialing'],
+        default: 'active',
+      },
       startDate: Date,
       endDate: Date,
       stripeCustomerId: String,
       stripeSubscriptionId: String,
+      currentPeriodStart: Date,
+      currentPeriodEnd: Date,
+      cancelAtPeriodEnd: {
+        type: Boolean,
+        default: false,
+      },
       features: {
         maxResumeTailoring: {
           type: Number,
-          default: 3, // FREE tier default
+          default: 3,
         },
         maxCoverLetters: {
           type: Number,
-          default: 3, // FREE tier default
+          default: 3,
         },
         aiPriority: {
           type: Boolean,
           default: false,
         },
         unlimitedBookmarks: {
+          type: Boolean,
+          default: false,
+        },
+        advancedAnalytics: {
+          type: Boolean,
+          default: false,
+        },
+        emailAlerts: {
           type: Boolean,
           default: false,
         },
@@ -244,6 +262,8 @@ const UserSchema: Schema = new Schema(
 // Indexes for performance
 UserSchema.index({ email: 1 });
 UserSchema.index({ 'subscription.plan': 1 });
+UserSchema.index({ 'subscription.stripeCustomerId': 1 });
+UserSchema.index({ 'subscription.stripeSubscriptionId': 1 });
 UserSchema.index({ googleId: 1 });
 UserSchema.index({ linkedinId: 1 });
 
@@ -266,7 +286,5 @@ UserSchema.methods.comparePassword = async function (
 ): Promise<boolean> {
   return bcrypt.compare(candidatePassword, this.password);
 };
-UserSchema.index({ 'subscription.stripeCustomerId': 1 });
-UserSchema.index({ 'subscription.stripeSubscriptionId': 1 });
 
 export default mongoose.model<IUser>('User', UserSchema);
