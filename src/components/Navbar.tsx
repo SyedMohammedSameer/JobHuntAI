@@ -1,3 +1,6 @@
+// src/components/Navbar.tsx
+// REPLACE YOUR ENTIRE FILE WITH THIS VERSION
+
 import { Search, Moon, Sun, User, Bell, LogOut, Settings, Menu } from "lucide-react";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -18,9 +21,18 @@ interface NavbarProps {
   isAuthenticated: boolean;
   onSidebarToggle?: () => void;
   showSidebarToggle?: boolean;
+  onLogout?: () => void;  // ADD THIS PROP
 }
 
-export function Navbar({ onThemeToggle, isDark, onNavigate, isAuthenticated, onSidebarToggle, showSidebarToggle }: NavbarProps) {
+export function Navbar({ 
+  onThemeToggle, 
+  isDark, 
+  onNavigate, 
+  isAuthenticated, 
+  onSidebarToggle, 
+  showSidebarToggle,
+  onLogout  // ADD THIS
+}: NavbarProps) {
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-4 sm:px-6 gap-2 sm:gap-4">
@@ -96,9 +108,10 @@ export function Navbar({ onThemeToggle, isDark, onNavigate, isAuthenticated, onS
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => onNavigate("landing")}>
+                  {/* THIS IS THE LOGOUT BUTTON - UPDATED */}
+                  <DropdownMenuItem onClick={onLogout}>
                     <LogOut className="mr-2 h-4 w-4" />
-                    Log out
+                    Logout
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
