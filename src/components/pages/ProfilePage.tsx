@@ -1,4 +1,5 @@
-import { Upload, User } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Upload, User, Loader2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Input } from "../ui/input";
@@ -8,8 +9,56 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Progress } from "../ui/progress";
 import { Badge } from "../ui/badge";
+import { toast } from "sonner";
+import { authService, User as UserType } from "../../services/authService";
 
 export function ProfilePage() {
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [user, setUser] = useState<UserType | null>(null);
+  const [formData, setFormData] = useState({
+    firstName: '',
+    lastName: '',
+    university: '',
+    major: '',
+    visaType: '',
+  });
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
+  const fetchProfile = async () => {
+    try {
+      setLoading(true);
+      const userData = await authService.getCurrentUser();
+      setUser(userData);
+      setFormData({
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        university: userData.university || '',
+        major: userData.major || '',
+        visaType: userData.visaType || '',
+      });
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load profile');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSave = async () => {
+    try {
+      setSaving(true);
+      await authService.updateProfile(formData);
+      toast.success('Profile updated successfully!');
+      fetchProfile();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to update profile');
+    } finally {
+      setSaving(false);
+    }
+  };
   return (
     <div className="space-y-6 max-w-4xl">
       <div>
@@ -97,11 +146,19 @@ export function ProfilePage() {
           <div className="grid md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="first-name">First Name</Label>
-              <Input id="first-name" defaultValue="John" />
+              <Input
+                id="first-name"
+                value={formData.firstName}
+                onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="last-name">Last Name</Label>
-              <Input id="last-name" defaultValue="Doe" />
+              <Input
+                id="last-name"
+                value={formData.lastName}
+                onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+              />
             </div>
           </div>
 
@@ -122,7 +179,11 @@ export function ProfilePage() {
 
           <div className="space-y-2">
             <Label htmlFor="university">University</Label>
-            <Input id="university" defaultValue="Stanford University" />
+            <Input
+              id="university"
+              value={formData.university}
+              onChange={(e) => setFormData({ ...formData, university: e.target.value })}
+            />
           </div>
         </CardContent>
       </Card>
@@ -141,17 +202,20 @@ export function ProfilePage() {
 
           <div className="space-y-2">
             <Label htmlFor="visa-status">Visa Status</Label>
-            <Select defaultValue="stem-opt">
+            <Select
+              value={formData.visaType}
+              onValueChange={(value) => setFormData({ ...formData, visaType: value })}
+            >
               <SelectTrigger id="visa-status">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="f1">F-1 Student</SelectItem>
-                <SelectItem value="opt">OPT</SelectItem>
-                <SelectItem value="stem-opt">STEM OPT</SelectItem>
-                <SelectItem value="h1b">H1B</SelectItem>
-                <SelectItem value="citizen">US Citizen/Green Card</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
+                <SelectItem value="F1">F-1 Student</SelectItem>
+                <SelectItem value="OPT">OPT</SelectItem>
+                <SelectItem value="STEM_OPT">STEM OPT</SelectItem>
+                <SelectItem value="H1B">H1B</SelectItem>
+                <SelectItem value="CITIZEN">US Citizen/Green Card</SelectItem>
+                <SelectItem value="OTHER">Other</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -214,10 +278,25 @@ export function ProfilePage() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-3">
-        <Button variant="outline">Cancel</Button>
-        <Button>Save Changes</Button>
-      </div>
+      {loading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-[#00B4D8]" />
+        </div>
+      ) : (
+        <div className="flex justify-end gap-3">
+          <Button variant="outline" onClick={fetchProfile}>Cancel</Button>
+          <Button onClick={handleSave} disabled={saving}>
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              'Save Changes'
+            )}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }

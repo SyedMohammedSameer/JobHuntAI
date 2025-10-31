@@ -58,7 +58,7 @@ async function testUsageTrackingService() {
 
     await testUser.save();
     console.log('Test user created:', testUser._id.toString());
-    console.log('Subscription plan:', testUser.subscriptionPlan);
+    console.log('Subscription plan:', testUser.subscription?.plan);
     console.log('✅ User creation works\n');
 
     // Test 3: Get initial usage stats

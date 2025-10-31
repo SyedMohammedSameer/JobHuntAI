@@ -22,8 +22,8 @@ interface DeduplicationResult {
 }
 
 class JobCleanupService {
-  private readonly JOB_RETENTION_DAYS = 30; // Keep jobs for 30 days
-  private readonly INACTIVE_THRESHOLD_DAYS = 45; // Mark as inactive after 45 days
+  private readonly JOB_RETENTION_DAYS = 21; // Keep jobs for 21 days (3 weeks)
+  private readonly INACTIVE_THRESHOLD_DAYS = 30; // Mark as inactive after 30 days
 
   /**
    * Remove jobs older than retention period

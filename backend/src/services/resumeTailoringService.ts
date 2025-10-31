@@ -523,14 +523,16 @@ class ResumeTailoringService {
 
       const lowerContent = tailoredContent.toLowerCase();
       
-      // 1. Keyword Match Score (40%)
-      const matchedKeywords = jobAnalysis.keywords.filter(keyword => 
+      // 1. Keyword Match Score (40%) - with safety check for empty keywords
+      const matchedKeywords = jobAnalysis.keywords.filter(keyword =>
         lowerContent.includes(keyword.toLowerCase())
       );
       const missingKeywords = jobAnalysis.keywords.filter(keyword =>
         !lowerContent.includes(keyword.toLowerCase())
       );
-      const keywordMatch = (matchedKeywords.length / jobAnalysis.keywords.length) * 100;
+      const keywordMatch = jobAnalysis.keywords.length > 0
+        ? (matchedKeywords.length / jobAnalysis.keywords.length) * 100
+        : 75; // Default score if no keywords
 
       // 2. Skills Match Score (30%)
       const allSkills = [...jobAnalysis.requiredSkills, ...jobAnalysis.preferredSkills];

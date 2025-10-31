@@ -118,12 +118,15 @@ export const uploadResume = async (req: Request, res: Response): Promise<void> =
       success: true,
       message: 'Resume uploaded successfully',
       data: {
-        resumeId: resume._id,
-        fileName: resume.fileName,
-        type: resume.type,
-        uploadedAt: resume.createdAt,
-        textLength: extractionResult.text.length,
-        metadata: resume.metadata
+        resume: {
+          _id: resume._id,  // ✅ Return full resume object
+          fileName: resume.fileName,
+          type: resume.type,
+          originalText: resume.originalText,
+          createdAt: resume.createdAt,
+          updatedAt: resume.updatedAt,
+          metadata: resume.metadata
+        }
       }
     });
 
@@ -198,9 +201,11 @@ export const getResumes = async (req: Request, res: Response): Promise<void> => 
       success: true,
       data: {
         resumes: resumes.map(resume => ({
-          id: resume._id,
+          _id: resume._id,  // ✅ Changed from 'id' to '_id'
           fileName: resume.fileName,
           type: resume.type,
+          originalText: resume.originalText,  // ✅ Added for viewing
+          tailoredContent: resume.tailoredContent,  // ✅ Added for viewing
           jobId: resume.jobId,
           jobDetails: (resume as any).jobId ? {
             title: (resume as any).jobId.title,
@@ -434,8 +439,18 @@ export const tailorResume = async (req: Request, res: Response): Promise<void> =
       success: true,
       message: 'Resume tailored successfully',
       data: {
-        tailoredResumeId: tailoringResult.resumeId, // ✅ Correct property name
-        fileName: tailoredResume?.fileName || 'tailored_resume.pdf',
+        resume: {  // ✅ Return full resume object to match frontend
+          _id: tailoredResume?._id,
+          fileName: tailoredResume?.fileName || 'tailored_resume.pdf',
+          type: tailoredResume?.type || 'TAILORED',
+          originalText: tailoredResume?.originalText,
+          tailoredContent: tailoredResume?.tailoredContent,
+          createdAt: tailoredResume?.createdAt,
+          updatedAt: tailoredResume?.updatedAt,
+          metadata: tailoredResume?.metadata
+        },
+        tokensUsed: tailoringResult.tokensUsed,
+        estimatedCost: tailoringResult.estimatedCost,
         atsScore: tailoringResult.atsScore.overallScore,
         atsBreakdown: {
           overall: tailoringResult.atsScore.overallScore,
@@ -447,8 +462,6 @@ export const tailorResume = async (req: Request, res: Response): Promise<void> =
         matchedKeywords: tailoringResult.atsScore.matchedKeywords.slice(0, 10),
         missingKeywords: tailoringResult.atsScore.missingKeywords.slice(0, 5),
         improvements: tailoringResult.improvements,
-        tokensUsed: tailoringResult.tokensUsed,
-        estimatedCost: tailoringResult.estimatedCost,
         jobDetails: {
           title: job.title,
           company: job.company,
