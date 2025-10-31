@@ -144,6 +144,7 @@ function AppContent() {
             onNavigate={handleNavigate}
             isOpen={sidebarOpen}
             onClose={() => setSidebarOpen(false)}
+            onLogout={handleLogout}
           />
         )}
 

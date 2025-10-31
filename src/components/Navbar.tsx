@@ -1,5 +1,4 @@
 // src/components/Navbar.tsx
-// REPLACE YOUR ENTIRE FILE WITH THIS VERSION
 
 import { Search, Moon, Sun, User, Bell, LogOut, Settings, Menu } from "lucide-react";
 import { Button } from "./ui/button";
@@ -13,6 +12,7 @@ import {
   DropdownMenuTrigger,
 } from "./ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
+import { useAuth } from "../contexts/AuthContext";
 
 interface NavbarProps {
   onThemeToggle: () => void;
@@ -21,18 +21,27 @@ interface NavbarProps {
   isAuthenticated: boolean;
   onSidebarToggle?: () => void;
   showSidebarToggle?: boolean;
-  onLogout?: () => void;  // ADD THIS PROP
+  onLogout?: () => void;
 }
 
-export function Navbar({ 
-  onThemeToggle, 
-  isDark, 
-  onNavigate, 
-  isAuthenticated, 
-  onSidebarToggle, 
+export function Navbar({
+  onThemeToggle,
+  isDark,
+  onNavigate,
+  isAuthenticated,
+  onSidebarToggle,
   showSidebarToggle,
-  onLogout  // ADD THIS
+  onLogout
 }: NavbarProps) {
+  const { user } = useAuth();
+
+  // Get user initials
+  const getUserInitials = () => {
+    if (!user) return "U";
+    const firstInitial = user.firstName?.charAt(0)?.toUpperCase() || "";
+    const lastInitial = user.lastName?.charAt(0)?.toUpperCase() || "";
+    return firstInitial + lastInitial || "U";
+  };
   return (
     <nav className="sticky top-0 z-50 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="flex h-16 items-center px-4 sm:px-6 gap-2 sm:gap-4">
@@ -89,15 +98,24 @@ export function Navbar({
                 <DropdownMenuTrigger asChild>
                   <Button variant="ghost" className="relative h-10 w-10 rounded-full">
                     <Avatar>
-                      <AvatarImage src="" />
+                      <AvatarImage src={user?.profilePicture || ""} />
                       <AvatarFallback className="bg-gradient-to-br from-[#34d399] to-[#10b981] text-white">
-                        JD
+                        {getUserInitials()}
                       </AvatarFallback>
                     </Avatar>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>My Account</DropdownMenuLabel>
+                  <DropdownMenuLabel>
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {user?.firstName} {user?.lastName}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user?.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => onNavigate("profile")}>
                     <User className="mr-2 h-4 w-4" />
@@ -108,8 +126,7 @@ export function Navbar({
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
-                  {/* THIS IS THE LOGOUT BUTTON - UPDATED */}
-                  <DropdownMenuItem onClick={onLogout}>
+                  <DropdownMenuItem onClick={onLogout} className="text-red-600 focus:text-red-600">
                     <LogOut className="mr-2 h-4 w-4" />
                     Logout
                   </DropdownMenuItem>

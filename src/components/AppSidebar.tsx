@@ -9,6 +9,7 @@ import {
   Sparkles,
   Calendar,
   X,
+  LogOut,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
@@ -17,9 +18,10 @@ interface AppSidebarProps {
   onNavigate: (page: string) => void;
   isOpen: boolean;
   onClose?: () => void;
+  onLogout?: () => void;
 }
 
-export function AppSidebar({ currentPage, onNavigate, isOpen, onClose }: AppSidebarProps) {
+export function AppSidebar({ currentPage, onNavigate, isOpen, onClose, onLogout }: AppSidebarProps) {
   const navItems = [
     { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
     { id: "jobs", label: "Job Listings", icon: Briefcase },
@@ -82,7 +84,7 @@ export function AppSidebar({ currentPage, onNavigate, isOpen, onClose }: AppSide
             );
           })}
           
-          <div className="pt-4">
+          <div className="pt-4 space-y-2">
             <Button
               variant={currentPage === "settings" ? "default" : "ghost"}
               className="w-full justify-start"
@@ -90,6 +92,15 @@ export function AppSidebar({ currentPage, onNavigate, isOpen, onClose }: AppSide
             >
               <Settings className="mr-2 h-4 w-4" />
               Settings
+            </Button>
+
+            <Button
+              variant="ghost"
+              className="w-full justify-start text-red-600 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950"
+              onClick={onLogout}
+            >
+              <LogOut className="mr-2 h-4 w-4" />
+              Logout
             </Button>
           </div>
         </div>
