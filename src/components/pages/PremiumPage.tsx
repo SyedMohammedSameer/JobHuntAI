@@ -5,12 +5,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui
 import { Badge } from "../ui/badge";
 import { Switch } from "../ui/switch";
 import { Progress } from "../ui/progress";
-import { useToast } from "../../hooks/use-toast";
+import { toast } from "sonner";
 import subscriptionService, { Subscription } from "../../services/subscriptionService";
 import paymentService from "../../services/paymentService";
 
 export function PremiumPage() {
-  const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<Subscription | null>(null);
@@ -26,11 +25,7 @@ export function PremiumPage() {
       const sub = await subscriptionService.getCurrentSubscription();
       setSubscription(sub);
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load subscription",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to load subscription");
     } finally {
       setLoading(false);
     }
@@ -41,11 +36,7 @@ export function PremiumPage() {
       setUpgrading(true);
       await paymentService.redirectToCheckout();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to start upgrade process",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to start upgrade process");
       setUpgrading(false);
     }
   };
@@ -54,11 +45,7 @@ export function PremiumPage() {
     try {
       await paymentService.redirectToPortal();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to open billing portal",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to open billing portal");
     }
   };
 

@@ -7,7 +7,7 @@ import { Badge } from "../ui/badge";
 import { Input } from "../ui/input";
 import { Label } from "../ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
-import { useToast } from "../../hooks/use-toast";
+import { toast } from "sonner";
 import visaService, {
   VisaStatus,
   ImportantDate,
@@ -16,7 +16,6 @@ import visaService, {
 } from "../../services/visaService";
 
 export function VisaTrackerPage() {
-  const { toast } = useToast();
 
   // State
   const [loading, setLoading] = useState(true);
@@ -88,11 +87,7 @@ export function VisaTrackerPage() {
         });
       }
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to load visa data",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to load visa data");
     } finally {
       setLoading(false);
     }
@@ -110,30 +105,19 @@ export function VisaTrackerPage() {
         sevisId: editForm.sevisId,
       });
 
-      toast({
-        title: "Success",
-        description: "Visa information updated successfully",
-      });
+      toast.success("Visa information updated successfully");
 
       setIsEditing(false);
       loadAllData();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to update visa information",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to update visa information");
     }
   };
 
   const handleAddImportantDate = async () => {
     try {
       if (!dateForm.title || !dateForm.date) {
-        toast({
-          title: "Error",
-          description: "Title and date are required",
-          variant: "destructive",
-        });
+        toast.error("Title and date are required");
         return;
       }
 
@@ -142,19 +126,13 @@ export function VisaTrackerPage() {
           ...dateForm,
           date: new Date(dateForm.date),
         });
-        toast({
-          title: "Success",
-          description: "Important date updated successfully",
-        });
+        toast.success("Important date updated successfully");
       } else {
         await visaService.addImportantDate({
           ...dateForm,
           date: new Date(dateForm.date),
         });
-        toast({
-          title: "Success",
-          description: "Important date added successfully",
-        });
+        toast.success("Important date added successfully");
       }
 
       setShowDateForm(false);
@@ -169,28 +147,17 @@ export function VisaTrackerPage() {
       });
       loadAllData();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to save important date",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to save important date");
     }
   };
 
   const handleDeleteImportantDate = async (id: string) => {
     try {
       await visaService.deleteImportantDate(id);
-      toast({
-        title: "Success",
-        description: "Important date deleted successfully",
-      });
+      toast.success("Important date deleted successfully");
       loadAllData();
     } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message || "Failed to delete important date",
-        variant: "destructive",
-      });
+      toast.error(error.message || "Failed to delete important date");
     }
   };
 
