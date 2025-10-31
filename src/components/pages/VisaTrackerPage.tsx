@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Calendar, Edit, Plus, Trash2, Clock, AlertCircle, Save, X } from "lucide-react";
+import { Calendar, Edit, Plus, Trash2, Clock, AlertCircle, Save, X, ExternalLink } from "lucide-react";
 import { VisaTrackerWidget } from "../VisaTrackerWidget";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
@@ -186,15 +186,15 @@ export function VisaTrackerPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+    <div className="space-y-4 sm:space-y-6 px-2 sm:px-0">
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
         <div>
-          <h1 className="text-3xl mb-2">Visa Tracker</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-2xl sm:text-3xl mb-1 sm:mb-2">Visa Tracker</h1>
+          <p className="text-sm sm:text-base text-muted-foreground">
             Monitor your visa status and important deadlines
           </p>
         </div>
-        <Button onClick={() => setIsEditing(!isEditing)}>
+        <Button onClick={() => setIsEditing(!isEditing)} className="w-full sm:w-auto">
           <Edit className="h-4 w-4 mr-2" />
           {isEditing ? "Cancel Edit" : "Update Visa Info"}
         </Button>
@@ -228,7 +228,19 @@ export function VisaTrackerPage() {
                 >
                   <h4 className="mb-1">{rec.title}</h4>
                   <p className="text-sm text-muted-foreground mb-2">{rec.message}</p>
-                  <Badge variant="outline">{rec.action}</Badge>
+                  {rec.action.startsWith('http') ? (
+                    <a
+                      href={rec.action}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-[#00B4D8] hover:underline"
+                    >
+                      Learn More
+                      <ExternalLink className="h-3 w-3" />
+                    </a>
+                  ) : (
+                    <Badge variant="outline">{rec.action}</Badge>
+                  )}
                 </div>
               ))}
             </div>
@@ -239,14 +251,15 @@ export function VisaTrackerPage() {
       {/* Important Dates */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div className="flex flex-col gap-3 sm:gap-4">
             <div>
-              <CardTitle>Important Dates & Deadlines</CardTitle>
-              <CardDescription>Stay on top of critical immigration dates</CardDescription>
+              <CardTitle className="text-lg sm:text-xl">Important Dates & Deadlines</CardTitle>
+              <CardDescription className="text-sm">Stay on top of critical immigration dates</CardDescription>
             </div>
             <Button
               variant="outline"
               size="sm"
+              className="w-full sm:w-auto"
               onClick={() => {
                 setEditingDateId(null);
                 setDateForm({
@@ -267,9 +280,9 @@ export function VisaTrackerPage() {
         </CardHeader>
         <CardContent>
           {showDateForm && (
-            <div className="mb-4 p-4 border rounded-xl bg-muted/50">
-              <h4 className="mb-4">{editingDateId ? "Edit" : "Add"} Important Date</h4>
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="mb-4 p-3 sm:p-4 border rounded-xl bg-muted/50">
+              <h4 className="text-base sm:text-lg mb-3 sm:mb-4">{editingDateId ? "Edit" : "Add"} Important Date</h4>
+              <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
                   <Label htmlFor="date-title">Title</Label>
                   <Input
@@ -318,12 +331,12 @@ export function VisaTrackerPage() {
                   />
                 </div>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button onClick={handleAddImportantDate}>
+              <div className="flex flex-col sm:flex-row gap-2 mt-4">
+                <Button onClick={handleAddImportantDate} className="w-full sm:w-auto">
                   <Save className="h-4 w-4 mr-2" />
                   Save
                 </Button>
-                <Button variant="outline" onClick={() => setShowDateForm(false)}>
+                <Button variant="outline" onClick={() => setShowDateForm(false)} className="w-full sm:w-auto">
                   <X className="h-4 w-4 mr-2" />
                   Cancel
                 </Button>
@@ -392,11 +405,11 @@ export function VisaTrackerPage() {
       {isEditing && (
         <Card>
           <CardHeader>
-            <CardTitle>Update Visa Information</CardTitle>
-            <CardDescription>Update your visa details to get accurate tracking</CardDescription>
+            <CardTitle className="text-lg sm:text-xl">Update Visa Information</CardTitle>
+            <CardDescription className="text-sm">Update your visa details to get accurate tracking</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-3 sm:gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="visa-type">Visa Type</Label>
                 <Select
@@ -483,9 +496,9 @@ export function VisaTrackerPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <Button onClick={handleUpdateVisaInfo}>Save Changes</Button>
-              <Button variant="outline" onClick={() => setIsEditing(false)}>
+            <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 mt-4 sm:mt-6">
+              <Button onClick={handleUpdateVisaInfo} className="w-full sm:w-auto">Save Changes</Button>
+              <Button variant="outline" onClick={() => setIsEditing(false)} className="w-full sm:w-auto">
                 Cancel
               </Button>
             </div>

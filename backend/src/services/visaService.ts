@@ -298,14 +298,14 @@ export const getVisaRecommendations = async (userId: string) => {
         type: 'info',
         title: 'Consider STEM OPT Extension',
         message: 'If you have a STEM degree, you may be eligible for a 24-month extension.',
-        action: 'Check eligibility',
+        action: 'https://www.uscis.gov/working-in-the-united-states/students-and-exchange-visitors/optional-practical-training-opt-for-f-1-students',
       });
 
       recommendations.push({
         type: 'info',
         title: 'H1B Filing Season',
         message: 'H1B registration typically opens in March. Start preparing early.',
-        action: 'Learn about H1B',
+        action: 'https://www.uscis.gov/working-in-the-united-states/temporary-workers/h-1b-specialty-occupations',
       });
     }
 
@@ -315,7 +315,7 @@ export const getVisaRecommendations = async (userId: string) => {
         type: 'info',
         title: 'OPT Application',
         message: 'Apply for OPT 90 days before graduation, but no later than 60 days after.',
-        action: 'Plan OPT application',
+        action: 'https://studyinthestates.dhs.gov/students/opt-guide-for-f-1-students',
       });
     }
 
@@ -325,7 +325,7 @@ export const getVisaRecommendations = async (userId: string) => {
         type: 'info',
         title: 'H1B Preparation',
         message: 'Your STEM OPT gives you more time to secure H1B sponsorship.',
-        action: 'Find H1B sponsors',
+        action: 'https://www.myvisajobs.com/Visa-Sponsor/',
       });
     }
 
