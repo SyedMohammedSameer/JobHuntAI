@@ -77,22 +77,42 @@ class JobService {
     try {
       const params = new URLSearchParams();
 
-      if (filters.query) params.append('query', filters.query);
+      // Backend expects 'keywords' not 'query'
+      if (filters.query) params.append('keywords', filters.query);
       if (filters.location) params.append('location', filters.location);
       if (filters.remote !== undefined) params.append('remote', String(filters.remote));
       if (filters.employmentType) params.append('employmentType', filters.employmentType);
-      if (filters.visaSponsorship) params.append('visaSponsorship', filters.visaSponsorship);
+
+      // Visa sponsorship: backend expects individual boolean params (h1b, opt, stemOpt)
+      if (filters.visaSponsorship === 'h1b') {
+        params.append('h1b', 'true');
+      } else if (filters.visaSponsorship === 'opt') {
+        params.append('opt', 'true');
+      } else if (filters.visaSponsorship === 'stemOpt') {
+        params.append('stemOpt', 'true');
+      }
+
       if (filters.experienceLevel) params.append('experienceLevel', filters.experienceLevel);
       if (filters.salaryMin) params.append('salaryMin', String(filters.salaryMin));
       if (filters.page) params.append('page', String(filters.page));
       if (filters.limit) params.append('limit', String(filters.limit));
 
-      const response = await apiClient.get<ApiResponse<JobSearchResponse>>(
+      const response = await apiClient.get<ApiResponse<any>>(
         `/api/jobs/search?${params.toString()}`
       );
 
       if (response.data.success && response.data.data) {
-        return response.data.data;
+        // Backend returns: { jobs, pagination: { currentPage, totalPages, totalJobs, jobsPerPage } }
+        // Frontend expects: { jobs, pagination: { total, page, pages, limit } }
+        return {
+          jobs: response.data.data.jobs,
+          pagination: {
+            total: response.data.data.pagination.totalJobs,
+            page: response.data.data.pagination.currentPage,
+            pages: response.data.data.pagination.totalPages,
+            limit: response.data.data.pagination.jobsPerPage,
+          }
+        };
       }
 
       throw new Error(response.data.message || 'Failed to search jobs');

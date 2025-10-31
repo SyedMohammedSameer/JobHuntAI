@@ -36,10 +36,10 @@ export function JobsPage() {
     pages: 1,
   });
 
-  // Fetch jobs on mount and when filters change
+  // Fetch jobs on mount
   useEffect(() => {
     fetchJobs();
-  }, [filters.page]);
+  }, []);
 
   const fetchJobs = async () => {
     try {
@@ -55,12 +55,26 @@ export function JobsPage() {
   };
 
   const handleSearch = () => {
-    setFilters({ ...filters, page: 1 });
-    fetchJobs();
+    // Reset to page 1 and fetch with new filters
+    const newFilters = { ...filters, page: 1 };
+    setFilters(newFilters);
+    // Immediately fetch with new filters
+    setLoading(true);
+    jobService.searchJobs(newFilters)
+      .then(response => {
+        setJobs(response.jobs);
+        setPagination(response.pagination);
+      })
+      .catch(error => {
+        toast.error(error instanceof Error ? error.message : 'Failed to fetch jobs');
+      })
+      .finally(() => {
+        setLoading(false);
+      });
   };
 
-  const handleResetFilters = () => {
-    setFilters({
+  const handleResetFilters = async () => {
+    const resetFilters: JobSearchFilters = {
       query: '',
       location: '',
       remote: false,
@@ -69,8 +83,20 @@ export function JobsPage() {
       experienceLevel: '',
       page: 1,
       limit: 20,
-    });
-    setTimeout(() => fetchJobs(), 0);
+    };
+    setFilters(resetFilters);
+
+    // Immediately fetch with reset filters
+    try {
+      setLoading(true);
+      const response = await jobService.searchJobs(resetFilters);
+      setJobs(response.jobs);
+      setPagination(response.pagination);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to fetch jobs');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleBookmark = async (jobId: string) => {
@@ -97,8 +123,22 @@ export function JobsPage() {
     }
   };
 
-  const handleLoadMore = () => {
-    setFilters({ ...filters, page: (filters.page || 1) + 1 });
+  const handleLoadMore = async () => {
+    const nextPage = (filters.page || 1) + 1;
+    const newFilters = { ...filters, page: nextPage };
+    setFilters(newFilters);
+
+    try {
+      setLoading(true);
+      const response = await jobService.searchJobs(newFilters);
+      // Append new jobs to existing ones
+      setJobs([...jobs, ...response.jobs]);
+      setPagination(response.pagination);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : 'Failed to load more jobs');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatSalary = (job: Job) => {
