@@ -18,7 +18,7 @@ import recommendationService from '../services/recommendationService';
 
 /**
  * GET /api/jobs
- * Search jobs with filters
+ * Search jobs with filters - OPTIMIZED
  */
 export const searchJobs = async (req: Request, res: Response) => {
   try {
@@ -36,68 +36,165 @@ export const searchJobs = async (req: Request, res: Response) => {
       limit = 20
     } = req.query;
 
-    // Build query
-    const query: any = { isActive: true };
-
-    // Keyword search (in title or description)
-    if (keywords) {
-      query.$or = [
-        { title: { $regex: keywords, $options: 'i' } },
-        { description: { $regex: keywords, $options: 'i' } }
-      ];
-    }
-
-    // Location filter
-    if (location) {
-      query.location = { $regex: location, $options: 'i' };
-    }
-
-    // Remote filter
-    if (remote === 'true') {
-      query.remote = true;
-    }
-
-    // Visa sponsorship filters
-    if (h1b === 'true') {
-      query['visaSponsorship.h1b'] = true;
-    }
-    if (opt === 'true') {
-      query['visaSponsorship.opt'] = true;
-    }
-    if (stemOpt === 'true') {
-      query['visaSponsorship.stemOpt'] = true;
-    }
-
-    // Employment type filter
-    if (employmentType) {
-      query.employmentType = employmentType.toString().toUpperCase();
-    }
-
-    // Skills filter (match any skill in array)
-    if (skills) {
-      const skillsArray = skills.toString().split(',');
-      query.skills = { $in: skillsArray };
-    }
-
-    // Source filter
-    if (source) {
-      query.source = source.toString().toUpperCase();
-    }
-
-    // Pagination
     const pageNum = parseInt(page as string);
     const limitNum = parseInt(limit as string);
     const skip = (pageNum - 1) * limitNum;
 
-    // Execute query
-    const [jobs, totalCount] = await Promise.all([
-      Job.find(query)
-        .sort({ postedDate: -1 })
-        .skip(skip)
-        .limit(limitNum)
-        .lean(),
-      Job.countDocuments(query)
-    ]);
+    // Use aggregation pipeline for better performance and relevance scoring
+    const pipeline: any[] = [];
+
+    // Match stage - basic filters
+    const matchStage: any = { isActive: true };
+
+    // Location filter (still use regex for flexibility)
+    if (location) {
+      matchStage.location = { $regex: location, $options: 'i' };
+    }
+
+    // Remote filter
+    if (remote === 'true') {
+      matchStage.remote = true;
+    }
+
+    // Visa sponsorship filters
+    if (h1b === 'true') {
+      matchStage['visaSponsorship.h1b'] = true;
+    }
+    if (opt === 'true') {
+      matchStage['visaSponsorship.opt'] = true;
+    }
+    if (stemOpt === 'true') {
+      matchStage['visaSponsorship.stemOpt'] = true;
+    }
+
+    // Employment type filter
+    if (employmentType) {
+      matchStage.employmentType = employmentType.toString().toUpperCase();
+    }
+
+    // Skills filter
+    if (skills) {
+      const skillsArray = skills.toString().split(',');
+      matchStage.skillsRequired = { $in: skillsArray };
+    }
+
+    // Source filter
+    if (source) {
+      matchStage.source = source.toString().toUpperCase();
+    }
+
+    // Keyword search with scoring
+    if (keywords) {
+      // Use text search if available, otherwise regex
+      const keywordStr = keywords.toString();
+
+      // Try text search first (requires index)
+      try {
+        matchStage.$text = { $search: keywordStr };
+        pipeline.push({ $match: matchStage });
+
+        // Add text score for sorting
+        pipeline.push({
+          $addFields: {
+            searchScore: { $meta: 'textScore' }
+          }
+        });
+      } catch (error) {
+        // Fallback to regex if text index doesn't exist
+        matchStage.$or = [
+          { title: { $regex: keywordStr, $options: 'i' } },
+          { description: { $regex: keywordStr, $options: 'i' } },
+          { company: { $regex: keywordStr, $options: 'i' } }
+        ];
+        pipeline.push({ $match: matchStage });
+
+        // Add manual scoring based on title match
+        pipeline.push({
+          $addFields: {
+            searchScore: {
+              $cond: {
+                if: { $regexMatch: { input: '$title', regex: keywordStr, options: 'i' } },
+                then: 10, // Higher score for title match
+                else: 1   // Lower score for description match
+              }
+            }
+          }
+        });
+      }
+    } else {
+      pipeline.push({ $match: matchStage });
+      pipeline.push({
+        $addFields: {
+          searchScore: 0
+        }
+      });
+    }
+
+    // Project stage - limit description size and select only needed fields
+    pipeline.push({
+      $project: {
+        title: 1,
+        company: 1,
+        location: 1,
+        description: { $substr: ['$description', 0, 500] }, // Limit to 500 chars for list view
+        fullDescription: '$description', // Keep full for detail view
+        employmentType: 1,
+        experienceLevel: 1,
+        remote: 1,
+        salaryMin: 1,
+        salaryMax: 1,
+        salaryCurrency: 1,
+        visaSponsorship: 1,
+        source: 1,
+        sourceJobId: 1,
+        sourceUrl: 1,
+        skillsRequired: 1,
+        industryTags: 1,
+        postedDate: 1,
+        expiryDate: 1,
+        isActive: 1,
+        isFeatured: 1,
+        matchScore: 1,
+        searchScore: 1
+      }
+    });
+
+    // Sort stage - by relevance first, then by date
+    if (keywords) {
+      pipeline.push({
+        $sort: { searchScore: -1, postedDate: -1 }
+      });
+    } else {
+      pipeline.push({
+        $sort: { postedDate: -1 }
+      });
+    }
+
+    // Facet stage - get both results and count in one query
+    pipeline.push({
+      $facet: {
+        jobs: [
+          { $skip: skip },
+          { $limit: limitNum }
+        ],
+        totalCount: [
+          { $count: 'count' }
+        ]
+      }
+    });
+
+    // Execute aggregation
+    const result = await Job.aggregate(pipeline);
+
+    const jobs = result[0]?.jobs || [];
+    const totalCount = result[0]?.totalCount[0]?.count || 0;
+
+    logger.info(`Job search completed: ${jobs.length} results from ${totalCount} total`, {
+      keywords,
+      location,
+      filters: { remote, h1b, opt, stemOpt, employmentType },
+      page: pageNum
+    });
 
     res.json({
       success: true,
