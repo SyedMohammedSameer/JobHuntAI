@@ -1,24 +1,80 @@
-import { Check, Crown, Sparkles, Zap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Check, Crown, Sparkles, Zap, Loader2, ExternalLink } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Badge } from "../ui/badge";
 import { Switch } from "../ui/switch";
-import { useState } from "react";
+import { Progress } from "../ui/progress";
+import { useToast } from "../../hooks/use-toast";
+import subscriptionService, { Subscription } from "../../services/subscriptionService";
+import paymentService from "../../services/paymentService";
 
 export function PremiumPage() {
+  const { toast } = useToast();
   const [isAnnual, setIsAnnual] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [subscription, setSubscription] = useState<Subscription | null>(null);
+  const [upgrading, setUpgrading] = useState(false);
+
+  useEffect(() => {
+    loadSubscription();
+  }, []);
+
+  const loadSubscription = async () => {
+    try {
+      setLoading(true);
+      const sub = await subscriptionService.getCurrentSubscription();
+      setSubscription(sub);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to load subscription",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUpgrade = async () => {
+    try {
+      setUpgrading(true);
+      await paymentService.redirectToCheckout();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to start upgrade process",
+        variant: "destructive",
+      });
+      setUpgrading(false);
+    }
+  };
+
+  const handleManageSubscription = async () => {
+    try {
+      await paymentService.redirectToPortal();
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message || "Failed to open billing portal",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isPremium = subscription?.plan === "PREMIUM";
 
   const features = {
     free: [
-      "5 AI resume tailors/month",
+      "3 AI resume tailors/month",
       "3 cover letters/month",
       "Job match scores",
       "Basic dashboard",
       "Email support",
     ],
     premium: [
-      "Unlimited AI resume tailors",
-      "Unlimited cover letters",
+      "50 AI resume tailors/month",
+      "50 cover letters/month",
       "Advanced job match algorithm",
       "Application analytics & insights",
       "Job alerts & notifications",
@@ -30,33 +86,111 @@ export function PremiumPage() {
     ],
   };
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-96">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-[#00B4D8] mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading subscription...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       {/* Header */}
       <div className="text-center">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-gradient-to-r from-[#00B4D8]/10 to-[#0077B6]/10 border border-[#00B4D8]/20 mb-4">
           <Crown className="h-4 w-4 text-[#0077B6]" />
-          <span className="text-sm">Unlock Premium Features</span>
-        </div>
-        <h1 className="text-4xl mb-4">Choose Your Plan</h1>
-        <p className="text-xl text-muted-foreground mb-6">
-          Start free, upgrade when you need more
-        </p>
-
-        {/* Billing Toggle */}
-        <div className="flex items-center justify-center gap-3">
-          <span className={!isAnnual ? "" : "text-muted-foreground"}>Monthly</span>
-          <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
-          <span className={isAnnual ? "" : "text-muted-foreground"}>
-            Annual <Badge variant="secondary" className="ml-2">Save 20%</Badge>
+          <span className="text-sm">
+            {isPremium ? "Premium Active" : "Unlock Premium Features"}
           </span>
         </div>
+        <h1 className="text-4xl mb-4">
+          {isPremium ? "Your Premium Plan" : "Choose Your Plan"}
+        </h1>
+        <p className="text-xl text-muted-foreground mb-6">
+          {isPremium
+            ? "Enjoy unlimited access to all premium features"
+            : "Start free, upgrade when you need more"}
+        </p>
+
+        {!isPremium && (
+          <div className="flex items-center justify-center gap-3">
+            <span className={!isAnnual ? "" : "text-muted-foreground"}>Monthly</span>
+            <Switch checked={isAnnual} onCheckedChange={setIsAnnual} />
+            <span className={isAnnual ? "" : "text-muted-foreground"}>
+              Annual <Badge variant="secondary" className="ml-2">Save 20%</Badge>
+            </span>
+          </div>
+        )}
       </div>
+
+      {/* Current Subscription Status (if Premium) */}
+      {isPremium && subscription && (
+        <Card className="max-w-4xl mx-auto border-[#00B4D8] border-2">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-[#00B4D8]" />
+                  Premium Subscription
+                </CardTitle>
+                <CardDescription>Active and in good standing</CardDescription>
+              </div>
+              <Badge className="bg-green-500">
+                {subscription.cancelAtPeriodEnd ? "Canceling at Period End" : "Active"}
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="grid sm:grid-cols-2 gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Current Period</p>
+                <p className="text-sm">
+                  {subscription.currentPeriodEnd &&
+                    new Date(subscription.currentPeriodEnd).toLocaleDateString()}
+                </p>
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground mb-1">Status</p>
+                <p className="text-sm capitalize">{subscription.status}</p>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>AI Resume Tailoring</span>
+                  <span className="text-[#00B4D8]">Unlimited ✨</span>
+                </div>
+                <Progress value={100} className="h-2 bg-[#00B4D8]/20" />
+              </div>
+
+              <div>
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Cover Letter Generation</span>
+                  <span className="text-[#00B4D8]">Unlimited ✨</span>
+                </div>
+                <Progress value={100} className="h-2 bg-[#00B4D8]/20" />
+              </div>
+            </div>
+
+            <div className="flex gap-3">
+              <Button onClick={handleManageSubscription}>
+                <ExternalLink className="h-4 w-4 mr-2" />
+                Manage Subscription
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Pricing Cards */}
       <div className="grid md:grid-cols-2 gap-8 max-w-5xl mx-auto">
         {/* Free Plan */}
-        <Card>
+        <Card className={isPremium ? "opacity-60" : ""}>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               Free
@@ -72,8 +206,13 @@ export function PremiumPage() {
               <p className="text-sm text-muted-foreground mt-2">Free forever</p>
             </div>
 
-            <Button variant="outline" className="w-full" size="lg">
-              Current Plan
+            <Button
+              variant="outline"
+              className="w-full"
+              size="lg"
+              disabled={isPremium}
+            >
+              {isPremium ? "Previous Plan" : "Current Plan"}
             </Button>
 
             <div className="space-y-3">
@@ -90,9 +229,16 @@ export function PremiumPage() {
 
         {/* Premium Plan */}
         <Card className="border-[#00B4D8] border-2 relative overflow-hidden">
-          <div className="absolute top-0 right-0 bg-gradient-to-br from-[#00B4D8] to-[#0077B6] text-white px-4 py-1 text-sm">
-            Most Popular
-          </div>
+          {!isPremium && (
+            <div className="absolute top-0 right-0 bg-gradient-to-br from-[#00B4D8] to-[#0077B6] text-white px-4 py-1 text-sm">
+              Most Popular
+            </div>
+          )}
+          {isPremium && (
+            <div className="absolute top-0 right-0 bg-green-500 text-white px-4 py-1 text-sm">
+              Your Plan
+            </div>
+          )}
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Crown className="h-5 w-5 text-[#00B4D8]" />
@@ -115,10 +261,36 @@ export function PremiumPage() {
               )}
             </div>
 
-            <Button className="w-full" size="lg">
-              <Sparkles className="h-5 w-5 mr-2" />
-              Upgrade to Premium
-            </Button>
+            {isPremium ? (
+              <Button
+                className="w-full"
+                size="lg"
+                variant="outline"
+                onClick={handleManageSubscription}
+              >
+                <ExternalLink className="h-5 w-5 mr-2" />
+                Manage Billing
+              </Button>
+            ) : (
+              <Button
+                className="w-full"
+                size="lg"
+                onClick={handleUpgrade}
+                disabled={upgrading}
+              >
+                {upgrading ? (
+                  <>
+                    <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                    Redirecting...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="h-5 w-5 mr-2" />
+                    Upgrade to Premium
+                  </>
+                )}
+              </Button>
+            )}
 
             <div className="space-y-3">
               <p className="text-sm">Everything in Free, plus:</p>
@@ -153,7 +325,7 @@ export function PremiumPage() {
                 <tbody className="divide-y">
                   <tr>
                     <td className="py-4">AI Resume Tailoring</td>
-                    <td className="text-center py-4">5/month</td>
+                    <td className="text-center py-4">3/month</td>
                     <td className="text-center py-4">
                       <Zap className="inline h-5 w-5 text-[#00B4D8]" />
                     </td>
@@ -242,21 +414,32 @@ export function PremiumPage() {
       </div>
 
       {/* CTA Section */}
-      <div className="text-center py-12">
-        <div className="max-w-2xl mx-auto">
-          <h2 className="text-3xl mb-4">Ready to accelerate your job search?</h2>
-          <p className="text-xl text-muted-foreground mb-6">
-            Join thousands of successful job seekers using AI Job Hunt
-          </p>
-          <Button size="lg" className="px-8">
-            <Sparkles className="h-5 w-5 mr-2" />
-            Start Free Trial
-          </Button>
-          <p className="text-sm text-muted-foreground mt-4">
-            No credit card required • Upgrade anytime
-          </p>
+      {!isPremium && (
+        <div className="text-center py-12">
+          <div className="max-w-2xl mx-auto">
+            <h2 className="text-3xl mb-4">Ready to accelerate your job search?</h2>
+            <p className="text-xl text-muted-foreground mb-6">
+              Join thousands of successful job seekers using JobHuntAI
+            </p>
+            <Button size="lg" className="px-8" onClick={handleUpgrade} disabled={upgrading}>
+              {upgrading ? (
+                <>
+                  <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+                  Redirecting...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-5 w-5 mr-2" />
+                  Upgrade to Premium
+                </>
+              )}
+            </Button>
+            <p className="text-sm text-muted-foreground mt-4">
+              Secure checkout powered by Stripe • Cancel anytime
+            </p>
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

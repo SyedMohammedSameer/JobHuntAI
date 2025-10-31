@@ -26,6 +26,33 @@ export interface IUser extends Document {
   optStartDate?: Date;
   optEndDate?: Date;
   workAuthorization?: string;
+
+  // Detailed Visa Tracking (Task 3)
+  visaDetails?: {
+    currentType: string;
+    startDate?: Date;
+    endDate?: Date;
+    gracePeriodDays?: number;
+    i20Number?: string;
+    eadNumber?: string;
+    sevisId?: string;
+  };
+
+  importantDates?: Array<{
+    type: string;
+    title: string;
+    date: Date;
+    reminder: boolean;
+    reminderDays?: number;
+    notes?: string;
+  }>;
+
+  visaHistory?: Array<{
+    visaType: string;
+    startDate: Date;
+    endDate: Date;
+    status: 'ACTIVE' | 'EXPIRED' | 'TRANSFERRED';
+  }>;
   
   // AI Usage Tracking
   aiUsage: {
@@ -140,6 +167,41 @@ const UserSchema: Schema = new Schema(
     optStartDate: Date,
     optEndDate: Date,
     workAuthorization: String,
+
+    // Detailed Visa Tracking (Task 3)
+    visaDetails: {
+      currentType: String,
+      startDate: Date,
+      endDate: Date,
+      gracePeriodDays: Number,
+      i20Number: String,
+      eadNumber: String,
+      sevisId: String,
+    },
+
+    importantDates: [{
+      type: {
+        type: String,
+      },
+      title: String,
+      date: Date,
+      reminder: {
+        type: Boolean,
+        default: false,
+      },
+      reminderDays: Number,
+      notes: String,
+    }],
+
+    visaHistory: [{
+      visaType: String,
+      startDate: Date,
+      endDate: Date,
+      status: {
+        type: String,
+        enum: ['ACTIVE', 'EXPIRED', 'TRANSFERRED'],
+      },
+    }],
     
     // AI Usage Tracking
     aiUsage: {
