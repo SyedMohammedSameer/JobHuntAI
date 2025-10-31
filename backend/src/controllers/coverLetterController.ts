@@ -115,20 +115,34 @@ export const generateCoverLetter = async (req: Request, res: Response): Promise<
       tokensUsed: result.tokensUsed
     });
 
+    // Fetch the full cover letter to return
+    const coverLetter = await CoverLetter.findById(result.coverLetterId).lean();
+
     res.status(201).json({
       success: true,
       message: 'Cover letter generated successfully',
       data: {
-        coverLetterId: result.coverLetterId,
-        content: result.content,
-        tone: result.tone,
-        wordCount: result.wordCount,
+        coverLetter: {  // ✅ Return full cover letter object
+          _id: coverLetter?._id,
+          content: result.content,
+          jobTitle: result.jobTitle,
+          company: result.company,
+          tone: result.tone,
+          generatedByAI: true,
+          aiModel: coverLetter?.aiModel,
+          jobId: coverLetter?.jobId,
+          resumeId: coverLetter?.resumeId,
+          metadata: {
+            wordCount: result.wordCount,
+            tokensUsed: result.tokensUsed,
+            estimatedCost: result.estimatedCost,
+            qualityScore: coverLetter?.metadata?.qualityScore
+          },
+          createdAt: coverLetter?.createdAt,
+          updatedAt: coverLetter?.updatedAt
+        },
         tokensUsed: result.tokensUsed,
-        estimatedCost: result.estimatedCost,
-        jobDetails: {
-          title: result.jobTitle,
-          company: result.company
-        }
+        estimatedCost: result.estimatedCost
       }
     });
 
@@ -195,20 +209,16 @@ export const getCoverLetters = async (req: Request, res: Response): Promise<void
       success: true,
       data: {
         coverLetters: coverLetters.map(letter => ({
-          id: letter._id,
+          _id: letter._id,  // ✅ Changed from 'id' to '_id'
+          content: letter.content,  // ✅ Added content field
+          jobTitle: letter.jobTitle,  // ✅ Added jobTitle
+          company: letter.company,  // ✅ Added company
           tone: letter.tone,
-          wordCount: letter.metadata?.wordCount,
           generatedByAI: letter.generatedByAI,
+          aiModel: letter.aiModel,
           jobId: letter.jobId,
-          jobDetails: (letter as any).jobId ? {
-            title: (letter as any).jobId.title,
-            company: (letter as any).jobId.company,
-            location: (letter as any).jobId.location
-          } : {
-            title: letter.jobTitle,
-            company: letter.company
-          },
           resumeId: letter.resumeId,
+          metadata: letter.metadata,  // ✅ Added metadata
           createdAt: letter.createdAt,
           updatedAt: letter.updatedAt
         })),
