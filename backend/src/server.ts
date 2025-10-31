@@ -19,9 +19,10 @@ import coverLetterRoutes from './routes/coverLetterRoutes';
 import dashboardRoutes from './routes/dashboardRoutes';
 import applicationRoutes from './routes/applicationRoutes';
 import profileRoutes from './routes/profileRoutes';
-import webhookRoutes from './routes/webhookRoutes'; 
+import webhookRoutes from './routes/webhookRoutes';
 import paymentRoutes from './routes/paymentRoutes';
 import subscriptionRoutes from './routes/subscriptionRoutes';
+import visaRoutes from './routes/visaRoutes';
 // Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
 
@@ -100,6 +101,7 @@ app.use('/api/applications', applicationRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription', subscriptionRoutes);
+app.use('/api/visa', visaRoutes);
 // ==================== ERROR HANDLERS ====================
 
 // Multer Error Handler (Phase 3C)

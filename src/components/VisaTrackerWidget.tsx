@@ -2,18 +2,26 @@ import { Calendar, Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "./ui/card";
 import { Badge } from "./ui/badge";
 import { Progress } from "./ui/progress";
+import { VisaDetails } from "../services/visaService";
 
 interface VisaTrackerWidgetProps {
   compact?: boolean;
+  visaDetails?: VisaDetails | null;
+  daysRemaining?: number | null;
 }
 
-export function VisaTrackerWidget({ compact = false }: VisaTrackerWidgetProps) {
-  // Mock visa data - in real app, this would come from user profile
-  const visaData = {
-    type: "STEM OPT",
-    startDate: new Date("2024-06-01"),
-    endDate: new Date("2027-06-01"),
-    gracePeriod: 60, // days
+export function VisaTrackerWidget({ compact = false, visaDetails, daysRemaining: propDaysRemaining }: VisaTrackerWidgetProps) {
+  // Use provided data or fallback to mock data
+  const visaData = visaDetails ? {
+    type: visaDetails.currentType || "Not Set",
+    startDate: visaDetails.startDate ? new Date(visaDetails.startDate) : new Date(),
+    endDate: visaDetails.endDate ? new Date(visaDetails.endDate) : new Date(),
+    gracePeriod: visaDetails.gracePeriodDays || 0,
+  } : {
+    type: "Not Set",
+    startDate: new Date(),
+    endDate: new Date(),
+    gracePeriod: 0,
   };
 
   const today = new Date();
@@ -23,10 +31,10 @@ export function VisaTrackerWidget({ compact = false }: VisaTrackerWidgetProps) {
   const daysElapsed = Math.floor(
     (today.getTime() - visaData.startDate.getTime()) / (1000 * 60 * 60 * 24)
   );
-  const daysRemaining = Math.floor(
-    (visaData.endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  const progressPercentage = (daysElapsed / totalDays) * 100;
+  const daysRemaining = propDaysRemaining !== undefined && propDaysRemaining !== null
+    ? propDaysRemaining
+    : Math.floor((visaData.endDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+  const progressPercentage = totalDays > 0 ? (daysElapsed / totalDays) * 100 : 0;
 
   const getStatusColor = () => {
     if (daysRemaining < 90) return "destructive";

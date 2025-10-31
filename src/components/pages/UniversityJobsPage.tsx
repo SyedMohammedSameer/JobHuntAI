@@ -1,8 +1,9 @@
-import { GraduationCap, ExternalLink, Plus } from "lucide-react";
+import { GraduationCap, ExternalLink, Plus, AlertCircle, Info } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "../ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { Badge } from "../ui/badge";
+import { Alert, AlertDescription, AlertTitle } from "../ui/alert";
 
 export function UniversityJobsPage() {
   const universityJobs = [
@@ -65,7 +66,10 @@ export function UniversityJobsPage() {
     <div className="space-y-6">
       <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl mb-2">University Job Listings</h1>
+          <h1 className="text-3xl mb-2">
+            University Job Listings
+            <Badge variant="secondary" className="ml-3 text-xs">PREVIEW MODE</Badge>
+          </h1>
           <p className="text-muted-foreground">
             Find on-campus opportunities and research positions
           </p>
@@ -75,6 +79,31 @@ export function UniversityJobsPage() {
           Add University Portal
         </Button>
       </div>
+
+      {/* Preview Mode Disclaimer */}
+      <Alert className="border-[#00B4D8] bg-[#00B4D8]/5">
+        <Info className="h-5 w-5 text-[#00B4D8]" />
+        <AlertTitle className="text-[#00B4D8] mb-2">Preview Mode - Real Data Coming Soon!</AlertTitle>
+        <AlertDescription className="text-sm">
+          <p className="mb-2">
+            University job listings are currently in <strong>preview mode</strong> with sample data. We're working on integrating real-time job feeds from 50+ top universities.
+          </p>
+          <div className="flex flex-wrap gap-2 mt-3">
+            <Badge variant="outline" className="text-xs">
+              ✅ UI/UX Complete
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              🚧 Real-time Data: Coming Q1 2026
+            </Badge>
+            <Badge variant="outline" className="text-xs">
+              📅 Target: 50+ Universities
+            </Badge>
+          </div>
+          <p className="mt-3 text-xs text-muted-foreground">
+            <strong>Want to see your university added first?</strong> Contact us to request priority integration for your school.
+          </p>
+        </AlertDescription>
+      </Alert>
 
       {/* University Selector */}
       <Card>

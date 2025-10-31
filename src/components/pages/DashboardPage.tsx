@@ -10,6 +10,7 @@ import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, R
 import { dashboardService } from "../../services/dashboardService";
 import { useAuth } from "../../contexts/AuthContext";
 import { toast } from "sonner";
+import visaService, { VisaStatus } from "../../services/visaService";
 
 interface DashboardData {
   overview: {
@@ -49,6 +50,7 @@ export function DashboardPage() {
   const [dashboardData, setDashboardData] = useState<DashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [chartData, setChartData] = useState<Array<{ name: string; applications: number }>>([]);
+  const [visaStatus, setVisaStatus] = useState<VisaStatus | null>(null);
 
   useEffect(() => {
     const fetchDashboardData = async () => {
@@ -65,6 +67,15 @@ export function DashboardPage() {
           name: new Date(item.date).toLocaleDateString('en-US', { weekday: 'short' }),
           applications: item.applications
         })));
+
+        // Fetch visa status
+        try {
+          const visa = await visaService.getVisaStatus();
+          setVisaStatus(visa);
+        } catch (visaError) {
+          // Visa status is optional, so just log the error
+          console.log('No visa status found:', visaError);
+        }
       } catch (error) {
         console.error('Failed to fetch dashboard data:', error);
         toast.error('Failed to load dashboard data');
@@ -158,9 +169,13 @@ export function DashboardPage() {
       </div>
 
       {/* Visa Tracker Widget - Compact */}
-      {dashboardData.visaStatus && (
+      {visaStatus?.visaDetails && (
         <div className="lg:hidden">
-          <VisaTrackerWidget compact />
+          <VisaTrackerWidget
+            compact
+            visaDetails={visaStatus.visaDetails}
+            daysRemaining={visaStatus.daysRemaining}
+          />
         </div>
       )}
 
@@ -195,13 +210,16 @@ export function DashboardPage() {
       {/* Charts and Visa Tracker */}
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         {/* Visa Tracker - Desktop */}
-        {dashboardData.visaStatus && (
+        {visaStatus?.visaDetails && (
           <div className="hidden lg:block">
-            <VisaTrackerWidget />
+            <VisaTrackerWidget
+              visaDetails={visaStatus.visaDetails}
+              daysRemaining={visaStatus.daysRemaining}
+            />
           </div>
         )}
         {/* Charts */}
-        <div className={`${dashboardData.visaStatus ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4 sm:space-y-6`}>
+        <div className={`${visaStatus?.visaDetails ? 'lg:col-span-2' : 'lg:col-span-3'} space-y-4 sm:space-y-6`}>
           <Card>
             <CardHeader>
               <CardTitle className="text-lg sm:text-xl">Application Activity</CardTitle>
