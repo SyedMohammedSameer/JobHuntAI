@@ -54,7 +54,7 @@ class CoverLetterService {
   ): Promise<GenerateCoverLetterResponse> {
     try {
       const response = await apiClient.post<ApiResponse<GenerateCoverLetterResponse>>(
-        '/api/cover-letter/generate',
+        '/api/cover-letters/generate',
         request
       );
 
@@ -74,7 +74,7 @@ class CoverLetterService {
   async getCoverLetters(): Promise<CoverLetter[]> {
     try {
       const response = await apiClient.get<ApiResponse<{ coverLetters: CoverLetter[] }>>(
-        '/api/cover-letter'
+        '/api/cover-letters'
       );
 
       if (response.data.success && response.data.data) {
@@ -93,7 +93,7 @@ class CoverLetterService {
   async getCoverLetterById(coverLetterId: string): Promise<CoverLetter> {
     try {
       const response = await apiClient.get<ApiResponse<{ coverLetter: CoverLetter }>>(
-        `/api/cover-letter/${coverLetterId}`
+        `/api/cover-letters/${coverLetterId}`
       );
 
       if (response.data.success && response.data.data) {
@@ -115,7 +115,7 @@ class CoverLetterService {
   ): Promise<CoverLetter> {
     try {
       const response = await apiClient.put<ApiResponse<{ coverLetter: CoverLetter }>>(
-        `/api/cover-letter/${coverLetterId}`,
+        `/api/cover-letters/${coverLetterId}`,
         { content }
       );
 
@@ -138,7 +138,7 @@ class CoverLetterService {
   ): Promise<GenerateCoverLetterResponse> {
     try {
       const response = await apiClient.post<ApiResponse<GenerateCoverLetterResponse>>(
-        `/api/cover-letter/${coverLetterId}/regenerate`,
+        `/api/cover-letters/${coverLetterId}/regenerate`,
         { tone }
       );
 
@@ -158,7 +158,7 @@ class CoverLetterService {
   async downloadCoverLetter(coverLetterId: string): Promise<Blob> {
     try {
       const response = await apiClient.get(
-        `/api/cover-letter/${coverLetterId}/download`,
+        `/api/cover-letters/${coverLetterId}/download`,
         {
           responseType: 'blob',
         }
@@ -176,7 +176,7 @@ class CoverLetterService {
   async deleteCoverLetter(coverLetterId: string): Promise<void> {
     try {
       const response = await apiClient.delete<ApiResponse>(
-        `/api/cover-letter/${coverLetterId}`
+        `/api/cover-letters/${coverLetterId}`
       );
 
       if (!response.data.success) {
@@ -200,7 +200,7 @@ class CoverLetterService {
         totalCoverLetters: number;
         averageQualityScore: number;
         mostUsedTone: CoverLetterTone;
-      }>>('/api/cover-letter/stats');
+      }>>('/api/cover-letters/stats');
 
       if (response.data.success && response.data.data) {
         return response.data.data;

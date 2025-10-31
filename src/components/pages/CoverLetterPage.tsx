@@ -70,13 +70,13 @@ export function CoverLetterPage() {
       setGenerating(true);
       const response = await coverLetterService.generateCoverLetter({
         jobId: selectedJob,
-        resumeId: selectedResume || undefined,
+        resumeId: selectedResume && selectedResume !== 'none' ? selectedResume : undefined,
         tone: selectedTone,
       });
       toast.success(`Cover letter generated! Tokens used: ${response.tokensUsed}`);
       fetchCoverLetters();
       setSelectedJob('');
-      setSelectedResume('');
+      setSelectedResume('none');
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Failed to generate cover letter');
     } finally {
@@ -206,10 +206,10 @@ export function CoverLetterPage() {
               <Label>Select Resume (Optional)</Label>
               <Select value={selectedResume} onValueChange={setSelectedResume}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Choose a resume" />
+                  <SelectValue placeholder="Choose a resume (optional)" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">None</SelectItem>
+                  <SelectItem value="none">None</SelectItem>
                   {resumes.map((resume) => (
                     <SelectItem key={resume._id} value={resume._id}>
                       {resume.fileName}

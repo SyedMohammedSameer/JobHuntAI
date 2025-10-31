@@ -55,7 +55,7 @@ class ResumeService {
       formData.append('resume', file);
 
       const response = await apiClient.post<ApiResponse<{ resume: Resume }>>(
-        '/api/resume/upload',
+        '/api/resumes/upload',
         formData,
         {
           headers: {
@@ -80,7 +80,7 @@ class ResumeService {
   async getResumes(): Promise<Resume[]> {
     try {
       const response = await apiClient.get<ApiResponse<{ resumes: Resume[] }>>(
-        '/api/resume'
+        '/api/resumes'
       );
 
       if (response.data.success && response.data.data) {
@@ -99,7 +99,7 @@ class ResumeService {
   async getResumeById(resumeId: string): Promise<Resume> {
     try {
       const response = await apiClient.get<ApiResponse<{ resume: Resume }>>(
-        `/api/resume/${resumeId}`
+        `/api/resumes/${resumeId}`
       );
 
       if (response.data.success && response.data.data) {
@@ -118,7 +118,7 @@ class ResumeService {
   async tailorResume(resumeId: string, jobId: string): Promise<TailorResumeResponse> {
     try {
       const response = await apiClient.post<ApiResponse<TailorResumeResponse>>(
-        `/api/resume/${resumeId}/tailor`,
+        `/api/resumes/${resumeId}/tailor`,
         { jobId }
       );
 
@@ -138,7 +138,7 @@ class ResumeService {
   async downloadResume(resumeId: string): Promise<Blob> {
     try {
       const response = await apiClient.get(
-        `/api/resume/${resumeId}/download`,
+        `/api/resumes/${resumeId}/download`,
         {
           responseType: 'blob',
         }
@@ -156,7 +156,7 @@ class ResumeService {
   async deleteResume(resumeId: string): Promise<void> {
     try {
       const response = await apiClient.delete<ApiResponse>(
-        `/api/resume/${resumeId}`
+        `/api/resumes/${resumeId}`
       );
 
       if (!response.data.success) {
@@ -180,7 +180,7 @@ class ResumeService {
         totalResumes: number;
         tailoredResumes: number;
         averageAtsScore: number;
-      }>>('/api/resume/stats');
+      }>>('/api/resumes/stats');
 
       if (response.data.success && response.data.data) {
         return response.data.data;
