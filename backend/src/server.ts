@@ -8,8 +8,11 @@ import helmet from 'helmet';
 import morgan from 'morgan';
 import rateLimit from 'express-rate-limit';
 import multer from 'multer';
+import compression from 'compression';
+import mongoSanitize from 'express-mongo-sanitize';
 import connectDB from './config/database';
 import logger from './utils/logger';
+import { initializeSentry, Handlers as SentryHandlers } from './utils/sentry';
 
 // Import Routes
 import authRoutes from './routes/authRoutes';
@@ -25,6 +28,7 @@ import subscriptionRoutes from './routes/subscriptionRoutes';
 import visaRoutes from './routes/visaRoutes';
 // Import Cron Jobs
 import dailyJobRefreshService from './jobs/dailyJobRefresh';
+import { startEmailNotificationCron } from './jobs/emailNotificationCron';
 
 // Load environment variables
 dotenv.config();
@@ -37,6 +41,15 @@ const PORT = process.env.PORT || 5000;
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
+// ==================== SENTRY INITIALIZATION ====================
+// MUST be initialized before all other middleware
+initializeSentry(app);
+
+// Sentry request handler MUST be the first middleware
+app.use(SentryHandlers.requestHandler());
+
+// Sentry tracing middleware (optional but recommended for performance monitoring)
+app.use(SentryHandlers.tracingHandler());
 
 // ========================================
 // CRITICAL: Webhook routes MUST come BEFORE body parsers
@@ -45,6 +58,9 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoutes);
 
 // ==================== MIDDLEWARE ====================
+
+// Compression middleware (compress all responses)
+app.use(compression());
 
 // Security middleware
 app.use(helmet());
@@ -62,6 +78,9 @@ app.use(
 // Body parsing middleware
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+
+// Data sanitization against NoSQL query injection
+app.use(mongoSanitize());
 
 // HTTP request logger (only in development)
 if (NODE_ENV === 'development') {
@@ -103,6 +122,9 @@ app.use('/api/payment', paymentRoutes);
 app.use('/api/subscription', subscriptionRoutes);
 app.use('/api/visa', visaRoutes);
 // ==================== ERROR HANDLERS ====================
+
+// Sentry error handler MUST be before other error handlers
+app.use(SentryHandlers.errorHandler());
 
 // Multer Error Handler (Phase 3C)
 // This must come BEFORE the 404 handler
@@ -168,16 +190,21 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // ==================== CRON JOB INITIALIZATION ====================
 
 /**
- * Initialize automated job refresh cron
+ * Initialize automated cron jobs
  */
-const initializeJobCron = (): void => {
+const initializeCronJobs = (): void => {
   try {
     // Start the daily job refresh cron
     dailyJobRefreshService.start();
-    
-    logger.info('✅ Job refresh cron initialized successfully');
+    logger.info('✅ Job refresh cron initialized');
+
+    // Start the email notification cron
+    startEmailNotificationCron();
+    logger.info('✅ Email notification cron initialized');
+
+    logger.info('✅ All cron jobs initialized successfully');
   } catch (error) {
-    logger.error('❌ Failed to initialize job refresh cron:', error);
+    logger.error('❌ Failed to initialize cron jobs:', error);
     // Don't exit - server can still run without cron
   }
 };
@@ -196,7 +223,7 @@ const startServer = async (): Promise<void> => {
 
     // Step 2: Initialize cron jobs
     logger.info('🔄 Initializing cron jobs...');
-    initializeJobCron();
+    initializeCronJobs();
 
     // Step 3: Start Express server
     const server = app.listen(PORT, () => {

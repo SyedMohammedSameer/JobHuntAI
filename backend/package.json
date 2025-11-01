@@ -19,16 +19,22 @@
         "test:recommendations": "ts-node src/tests/testRecommendations.ts",
         "test:stripe": "ts-node src/tests/testStripe.ts",
         "test:webhooks": "ts-node src/tests/testWebhooks.ts",
-        "test:phase5": "npm run test:stripe && npm run test:webhooks"  
+        "test:phase5": "npm run test:stripe && npm run test:webhooks"
     },
     "dependencies": {
+        "@sendgrid/mail": "^8.1.6",
+        "@sentry/node": "^10.22.0",
+        "@sentry/profiling-node": "^10.22.0",
+        "@sentry/react": "^10.22.0",
         "@types/multer": "^2.0.0",
         "axios": "^1.6.2",
         "bcryptjs": "^2.4.3",
         "cheerio": "^1.0.0-rc.12",
+        "compression": "^1.8.1",
         "cors": "^2.8.5",
         "dotenv": "^16.3.1",
         "express": "^4.18.2",
+        "express-mongo-sanitize": "^2.2.0",
         "express-rate-limit": "^7.1.5",
         "express-validator": "^7.0.1",
         "helmet": "^7.1.0",
@@ -40,9 +46,11 @@
         "node-cron": "^3.0.3",
         "openai": "^6.6.0",
         "pdf-parse": "^1.1.1",
+        "react-ga4": "^2.1.0",
         "stripe": "^19.1.0",
         "tiktoken": "^1.0.22",
-        "winston": "^3.11.0"
+        "winston": "^3.11.0",
+        "xss-clean": "^0.1.4"
     },
     "devDependencies": {
         "@types/bcryptjs": "^2.4.6",
