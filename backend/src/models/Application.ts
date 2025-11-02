@@ -159,10 +159,12 @@ const ApplicationSchema: Schema = new Schema(
   }
 );
 
-// Compound indexes
+// Compound indexes for performance
 ApplicationSchema.index({ userId: 1, status: 1 });
 ApplicationSchema.index({ userId: 1, createdAt: -1 });
 ApplicationSchema.index({ userId: 1, jobId: 1 }, { unique: true });
+// Index for email notification cron job (finding old applications)
+ApplicationSchema.index({ status: 1, appliedDate: 1 });
 
 // Method to update status
 ApplicationSchema.methods.updateStatus = async function (

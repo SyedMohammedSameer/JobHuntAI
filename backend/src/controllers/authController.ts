@@ -3,6 +3,7 @@ import { validationResult } from 'express-validator';
 import User from '../models/User';
 import { generateTokens, verifyRefreshToken } from '../utils/jwt';
 import { logger } from '../utils/logger';
+import { sendWelcomeEmail } from '../services/emailService';
 
 // Register new user
 export const register = async (req: Request, res: Response): Promise<void> => {
@@ -59,6 +60,14 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     });
 
     logger.info(`New user registered: ${email}`);
+
+    // Send welcome email (don't await - send asynchronously)
+    sendWelcomeEmail({
+      email: user.email,
+      name: `${user.firstName} ${user.lastName}`,
+    }).catch((error) => {
+      logger.error(`Failed to send welcome email to ${email}:`, error);
+    });
 
     res.status(201).json({
       success: true,

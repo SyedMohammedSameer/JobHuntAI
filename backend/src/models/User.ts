@@ -98,7 +98,18 @@ export interface IUser extends Document {
     salaryMin?: number;
     salaryMax?: number;
   };
-  
+
+  // Email Notification Preferences
+  emailPreferences?: {
+    welcomeEmails?: boolean;
+    visaExpiryAlerts?: boolean;
+    applicationReminders?: boolean;
+    interviewReminders?: boolean;
+    weeklyDigest?: boolean;
+    marketingEmails?: boolean;
+    frequency?: 'realtime' | 'daily' | 'weekly' | 'never';
+  };
+
   // Bookmarked Jobs
   bookmarkedJobs: mongoose.Types.ObjectId[];
   
@@ -294,7 +305,40 @@ const UserSchema: Schema = new Schema(
       salaryMin: Number,
       salaryMax: Number,
     },
-    
+
+    // Email Notification Preferences
+    emailPreferences: {
+      welcomeEmails: {
+        type: Boolean,
+        default: true,
+      },
+      visaExpiryAlerts: {
+        type: Boolean,
+        default: true,
+      },
+      applicationReminders: {
+        type: Boolean,
+        default: true,
+      },
+      interviewReminders: {
+        type: Boolean,
+        default: true,
+      },
+      weeklyDigest: {
+        type: Boolean,
+        default: true,
+      },
+      marketingEmails: {
+        type: Boolean,
+        default: false,
+      },
+      frequency: {
+        type: String,
+        enum: ['realtime', 'daily', 'weekly', 'never'],
+        default: 'realtime',
+      },
+    },
+
     // Bookmarked Jobs
     bookmarkedJobs: [{
       type: Schema.Types.ObjectId,
@@ -328,6 +372,9 @@ UserSchema.index({ 'subscription.stripeCustomerId': 1 });
 UserSchema.index({ 'subscription.stripeSubscriptionId': 1 });
 UserSchema.index({ googleId: 1 });
 UserSchema.index({ linkedinId: 1 });
+// Indexes for email notification cron job
+UserSchema.index({ isActive: 1, 'visaDetails.endDate': 1 });
+UserSchema.index({ isActive: 1, 'emailPreferences.weeklyDigest': 1 });
 
 // Hash password before saving
 UserSchema.pre('save', async function (next) {
