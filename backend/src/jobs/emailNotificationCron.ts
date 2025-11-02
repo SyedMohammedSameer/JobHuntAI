@@ -86,19 +86,21 @@ async function checkApplicationFollowUps() {
     const fourteenDaysAgo = new Date();
     fourteenDaysAgo.setDate(fourteenDaysAgo.getDate() - 14);
 
-    // Find applications that are 7 or 14 days old and still in 'Applied' status
+    // Find applications that are 7 or 14 days old and still in 'APPLIED' status
     const applications = await Application.find({
-      status: 'Applied',
+      status: 'APPLIED',
       appliedDate: {
         $lte: sevenDaysAgo,
         $gte: fourteenDaysAgo,
       },
-    }).populate('userId');
+    }).populate('userId').populate('jobId');
 
     for (const application of applications) {
       if (!application.userId || typeof application.userId === 'string') continue;
+      if (!application.jobId || typeof application.jobId === 'string') continue;
 
       const user = application.userId as any;
+      const job = application.jobId as any;
       const daysSinceApplied = Math.floor(
         (Date.now() - new Date(application.appliedDate).getTime()) /
           (1000 * 60 * 60 * 24)
@@ -107,10 +109,17 @@ async function checkApplicationFollowUps() {
       // Send reminder on day 7
       if (daysSinceApplied === 7) {
         console.log(
-          `📧 Sending follow-up reminder to ${user.email} for ${application.company}`
+          `📧 Sending follow-up reminder to ${user.email} for ${job.company}`
         );
 
-        await sendApplicationReminderEmail(user, application);
+        // Create application object with company info for email template
+        const applicationWithJob = {
+          ...application.toObject(),
+          company: job.company,
+          position: job.title,
+        };
+
+        await sendApplicationReminderEmail(user, applicationWithJob);
       }
     }
   } catch (error) {
@@ -137,9 +146,9 @@ async function sendWeeklyDigests() {
         const stats = {
           applicationsCount: applications.length,
           interviewsCount: applications.filter(
-            (app) => app.status === 'Interview Scheduled' || app.status === 'Interview'
+            (app) => app.status === 'INTERVIEW_SCHEDULED' || app.status === 'INTERVIEWED'
           ).length,
-          offersCount: applications.filter((app) => app.status === 'Offer').length,
+          offersCount: applications.filter((app) => app.status === 'OFFER_RECEIVED').length,
           searchesCount: 0, // Could track this separately if needed
         };
 

@@ -1,5 +1,5 @@
 import * as Sentry from '@sentry/node';
-import { ProfilingIntegration } from '@sentry/profiling-node';
+import { nodeProfilingIntegration } from '@sentry/profiling-node';
 import { Express } from 'express';
 
 /**
@@ -20,12 +20,8 @@ export const initializeSentry = (app: Express): void => {
       dsn: sentryDsn,
       environment,
       integrations: [
-        // Enable HTTP calls tracing
-        new Sentry.Integrations.Http({ tracing: true }),
-        // Enable Express.js middleware tracing
-        new Sentry.Integrations.Express({ app }),
         // Enable profiling
-        new ProfilingIntegration(),
+        nodeProfilingIntegration(),
       ],
       // Performance Monitoring
       tracesSampleRate: environment === 'production' ? 0.1 : 1.0, // 10% in production, 100% in dev
@@ -117,8 +113,14 @@ export const addBreadcrumb = (
   });
 };
 
-// Export Sentry handlers for Express middleware
-export const Handlers = Sentry.Handlers;
+/**
+ * Set up Sentry error handler for Express
+ * Must be called after all routes and before other error handlers
+ * @param app Express application instance
+ */
+export const setupExpressErrorHandler = (app: Express): void => {
+  Sentry.setupExpressErrorHandler(app);
+};
 
 export default {
   initializeSentry,
@@ -127,5 +129,5 @@ export default {
   setUserContext,
   clearUserContext,
   addBreadcrumb,
-  Handlers,
+  setupExpressErrorHandler,
 };

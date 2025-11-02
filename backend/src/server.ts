@@ -12,7 +12,7 @@ import compression from 'compression';
 import mongoSanitize from 'express-mongo-sanitize';
 import connectDB from './config/database';
 import logger from './utils/logger';
-import { initializeSentry, Handlers as SentryHandlers } from './utils/sentry';
+import { initializeSentry, setupExpressErrorHandler } from './utils/sentry';
 
 // Import Routes
 import authRoutes from './routes/authRoutes';
@@ -43,13 +43,8 @@ const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
 // ==================== SENTRY INITIALIZATION ====================
 // MUST be initialized before all other middleware
+// Note: Sentry v8+ automatically instruments Express, no manual handlers needed
 initializeSentry(app);
-
-// Sentry request handler MUST be the first middleware
-app.use(SentryHandlers.requestHandler());
-
-// Sentry tracing middleware (optional but recommended for performance monitoring)
-app.use(SentryHandlers.tracingHandler());
 
 // ========================================
 // CRITICAL: Webhook routes MUST come BEFORE body parsers
@@ -124,7 +119,7 @@ app.use('/api/visa', visaRoutes);
 // ==================== ERROR HANDLERS ====================
 
 // Sentry error handler MUST be before other error handlers
-app.use(SentryHandlers.errorHandler());
+setupExpressErrorHandler(app);
 
 // Multer Error Handler (Phase 3C)
 // This must come BEFORE the 404 handler
