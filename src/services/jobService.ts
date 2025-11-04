@@ -26,12 +26,16 @@ export interface Job {
   source: string;
   sourceJobId: string;
   sourceUrl: string;
+  applicationUrl?: string;
   skillsRequired: string[];
   industryTags: string[];
   postedDate: string;
   expiryDate?: string;
   isActive: boolean;
   isFeatured: boolean;
+  isUniversityJob?: boolean;
+  universityName?: string;
+  isCampusExclusive?: boolean;
   matchScore?: number;
   isBookmarked?: boolean;
 }
@@ -44,6 +48,8 @@ export interface JobSearchFilters {
   visaSponsorship?: 'h1b' | 'opt' | 'stemOpt';
   experienceLevel?: string;
   salaryMin?: number;
+  salaryMax?: number;
+  datePosted?: string;
   page?: number;
   limit?: number;
 }
