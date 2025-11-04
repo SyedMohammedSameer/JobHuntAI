@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import logger from '../../config/logger';
+import logger from '../../utils/logger';
 
 const HANDSHAKE_BASE_URL = 'https://api.joinhandshake.com/edu/v1';
 const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
