@@ -1,5 +1,5 @@
 import axios, { AxiosError } from 'axios';
-import logger from '../../config/logger';
+import logger from '../../utils/logger';
 
 const RAPIDAPI_HOST = 'linkedin-job-search1.p.rapidapi.com';
 const RAPIDAPI_URL = `https://${RAPIDAPI_HOST}`;
