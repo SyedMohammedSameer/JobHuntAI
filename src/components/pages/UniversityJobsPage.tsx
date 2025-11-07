@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { GraduationCap, ExternalLink, Search, Loader2, BookmarkIcon, MapPin, Clock, Building2 } from "lucide-react";
+import { GraduationCap, ExternalLink, Search, Loader2, MapPin, Clock, Building2 } from "lucide-react";
 import { Button } from "../ui/button";
 import { Card, CardContent } from "../ui/card";
 import { Badge } from "../ui/badge";
@@ -7,7 +7,6 @@ import { Input } from "../ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select";
 import { jobService, Job } from "../../services/jobService";
 import { toast } from "sonner";
-import { Link } from "react-router-dom";
 
 export function UniversityJobsPage() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -212,13 +211,11 @@ export function UniversityJobsPage() {
                     </div>
 
                     <div className="flex-1 min-w-0">
-                      <Link to={`/jobs/${job._id}`}>
-                        <h3 className="text-lg font-semibold mb-1 hover:text-[#00B4D8] transition-colors">
-                          {job.title}
-                        </h3>
-                      </Link>
+                      <h3 className="text-lg font-semibold mb-1">
+                        {job.title}
+                      </h3>
 
-                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3">
+                      <div className="flex items-center gap-3 text-sm text-muted-foreground mb-3 flex-wrap">
                         <div className="flex items-center gap-1">
                           <Building2 className="h-4 w-4" />
                           {job.company}
@@ -269,17 +266,16 @@ export function UniversityJobsPage() {
                   </div>
 
                   <div className="flex gap-2 flex-shrink-0">
-                    <Button variant="outline" size="sm" asChild>
-                      <Link to={`/jobs/${job._id}`}>
-                        View Details
-                      </Link>
-                    </Button>
                     {job.applicationUrl && (
-                      <Button size="sm" asChild>
-                        <a href={job.applicationUrl} target="_blank" rel="noopener noreferrer">
-                          <ExternalLink className="h-4 w-4 mr-2" />
-                          Apply
-                        </a>
+                      <Button size="sm" onClick={() => window.open(job.applicationUrl, '_blank')}>
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        Apply
+                      </Button>
+                    )}
+                    {job.sourceUrl && !job.applicationUrl && (
+                      <Button size="sm" onClick={() => window.open(job.sourceUrl, '_blank')}>
+                        <ExternalLink className="h-4 w-4 mr-2" />
+                        View Job
                       </Button>
                     )}
                   </div>
