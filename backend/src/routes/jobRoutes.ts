@@ -71,6 +71,7 @@ router.post('/aggregate', authenticateToken, jobController.triggerJobAggregation
  */
 router.get('/university', jobController.getUniversityJobs);
 
+/**
  * @route   GET /api/jobs/recommendations/personalized
  * @desc    Get personalized job recommendations
  * @access  Private
