@@ -45,8 +45,8 @@ export function SavedJobsPage() {
   const fetchSavedJobs = async () => {
     try {
       setLoading(true);
-      const response = await jobService.getBookmarkedJobs();
-      setSavedJobs(response.data.jobs || []);
+      const jobs = await jobService.getBookmarkedJobs();
+      setSavedJobs(jobs || []);
     } catch (error) {
       console.error("Error fetching saved jobs:", error);
       toast.error("Failed to load saved jobs");

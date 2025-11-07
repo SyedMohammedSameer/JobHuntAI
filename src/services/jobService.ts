@@ -185,14 +185,14 @@ class JobService {
    */
   async getBookmarkedJobs(): Promise<Job[]> {
     try {
-      const response = await apiClient.get<ApiResponse<BookmarkedJobsResponse>>(
+      const response = await apiClient.get<ApiResponse<{ jobs: Job[]; totalBookmarks: number }>>(
         '/api/jobs/bookmarked/list'
       );
 
       if (response.data.success && response.data.data) {
-        // Extract job details from bookmarked jobs
-        return response.data.data.bookmarkedJobs.map(bookmark => ({
-          ...bookmark.jobId,
+        // Backend returns jobs array directly
+        return response.data.data.jobs.map(job => ({
+          ...job,
           isBookmarked: true
         }));
       }
