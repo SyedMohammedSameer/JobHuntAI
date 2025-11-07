@@ -139,10 +139,11 @@ export const fetchLinkedInJobs = async (
 };
 
 /**
- * Fetch multiple job types from LinkedIn
+ * Fetch multiple job types from LinkedIn (all levels)
  */
 export const fetchLinkedInMultiple = async (): Promise<TransformedJob[]> => {
   const searches = [
+    // Entry-level & Internships (for university students)
     {
       keywords: 'software engineer intern',
       location: 'United States',
@@ -156,16 +157,48 @@ export const fetchLinkedInMultiple = async (): Promise<TransformedJob[]> => {
       experienceLevel: '1',
     },
     {
-      keywords: 'product manager new grad',
+      keywords: 'frontend developer entry level',
       location: 'United States',
       jobType: 'F',
       experienceLevel: '1',
     },
+    // Regular/Mid-level positions
     {
-      keywords: 'frontend developer entry level',
+      keywords: 'software engineer',
+      location: 'United States',
+      jobType: 'F',
+      experienceLevel: '2', // Associate/Mid-level
+    },
+    {
+      keywords: 'full stack developer',
+      location: 'United States',
+      jobType: 'F',
+      experienceLevel: '2',
+    },
+    {
+      keywords: 'backend engineer',
       location: 'Remote',
       jobType: 'F',
-      experienceLevel: '1',
+      experienceLevel: '2',
+      onsiteRemote: '2', // Remote
+    },
+    {
+      keywords: 'product manager',
+      location: 'United States',
+      jobType: 'F',
+      experienceLevel: '2',
+    },
+    // Senior positions
+    {
+      keywords: 'senior software engineer',
+      location: 'United States',
+      jobType: 'F',
+      experienceLevel: '3', // Senior
+    },
+    {
+      keywords: 'DevOps engineer',
+      location: 'Remote',
+      jobType: 'F',
       onsiteRemote: '2', // Remote
     },
   ];

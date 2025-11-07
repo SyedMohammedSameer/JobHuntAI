@@ -165,12 +165,12 @@ export function UniversityJobsPage() {
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             />
 
-            <Select value={employmentType} onValueChange={setEmploymentType}>
+            <Select value={employmentType || "ALL"} onValueChange={(val) => setEmploymentType(val === "ALL" ? "" : val)}>
               <SelectTrigger>
                 <SelectValue placeholder="Job Type" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">All Types</SelectItem>
+                <SelectItem value="ALL">All Types</SelectItem>
                 <SelectItem value="INTERNSHIP">Internship</SelectItem>
                 <SelectItem value="FULL_TIME">Full-time</SelectItem>
                 <SelectItem value="PART_TIME">Part-time</SelectItem>
