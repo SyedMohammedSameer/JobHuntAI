@@ -221,6 +221,65 @@ class JobService {
       throw new Error(handleApiError(error));
     }
   }
+
+  /**
+   * Get university jobs (Handshake, LinkedIn internships, entry-level)
+   */
+  async getUniversityJobs(filters: {
+    page?: number;
+    limit?: number;
+    keywords?: string;
+    location?: string;
+    employmentType?: string;
+  } = {}): Promise<{
+    jobs: Job[];
+    pagination: {
+      total: number;
+      page: number;
+      limit: number;
+      pages: number;
+    };
+    stats: {
+      total: number;
+      handshake: number;
+      linkedin: number;
+      other: number;
+    };
+  }> {
+    try {
+      const params = new URLSearchParams();
+
+      if (filters.page) params.append('page', String(filters.page));
+      if (filters.limit) params.append('limit', String(filters.limit));
+      if (filters.keywords) params.append('keywords', filters.keywords);
+      if (filters.location) params.append('location', filters.location);
+      if (filters.employmentType) params.append('employmentType', filters.employmentType);
+
+      const response = await apiClient.get<ApiResponse<{
+        jobs: Job[];
+        pagination: {
+          total: number;
+          page: number;
+          limit: number;
+          pages: number;
+        };
+        stats: {
+          total: number;
+          handshake: number;
+          linkedin: number;
+          other: number;
+        };
+      }>>(`/api/jobs/university?${params.toString()}`);
+
+      if (response.data.success && response.data.data) {
+        return response.data.data;
+      }
+
+      throw new Error(response.data.message || 'Failed to get university jobs');
+    } catch (error) {
+      throw new Error(handleApiError(error));
+    }
+  }
 }
 
 // Export singleton instance
