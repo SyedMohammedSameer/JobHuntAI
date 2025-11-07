@@ -136,7 +136,7 @@ export const searchJobs = async (req: Request, res: Response) => {
         title: 1,
         company: 1,
         location: 1,
-        description: { $substr: ['$description', 0, 500] }, // Limit to 500 chars for list view
+        description: { $substrCP: ['$description', 0, 500] }, // Limit to 500 chars for list view (UTF-8 safe)
         fullDescription: '$description', // Keep full for detail view
         employmentType: 1,
         experienceLevel: 1,
@@ -155,7 +155,11 @@ export const searchJobs = async (req: Request, res: Response) => {
         isActive: 1,
         isFeatured: 1,
         matchScore: 1,
-        searchScore: 1
+        searchScore: 1,
+        isUniversityJob: 1,
+        universityName: 1,
+        isCampusExclusive: 1,
+        applicationUrl: 1
       }
     });
 
