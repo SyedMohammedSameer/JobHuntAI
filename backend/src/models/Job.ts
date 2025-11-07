@@ -28,7 +28,7 @@ export interface IJob extends Document {
   };
   
   // Source Information
-  source: 'USAJOBS' | 'REMOTEOK' | 'ARBEITNOW' | 'CAREERJET' | 'JOOBLE' | 'UNIVERSITY' | 'HANDSHAKE' | 'HANDSHAKE-MOCK' | 'MANUAL';
+  source: 'USAJOBS' | 'REMOTEOK' | 'ARBEITNOW' | 'CAREERJET' | 'JOOBLE' | 'UNIVERSITY' | 'HANDSHAKE' | 'HANDSHAKE-MOCK' | 'LINKEDIN' | 'LINKEDIN-MOCK' | 'MANUAL';
   sourceJobId: string;
   sourceUrl: string;
 
@@ -131,7 +131,7 @@ const JobSchema: Schema = new Schema(
     // Source
     source: {
       type: String,
-      enum: ['USAJOBS', 'REMOTEOK', 'ARBEITNOW', 'CAREERJET', 'JOOBLE', 'UNIVERSITY', 'HANDSHAKE', 'HANDSHAKE-MOCK', 'MANUAL'],
+      enum: ['USAJOBS', 'REMOTEOK', 'ARBEITNOW', 'CAREERJET', 'JOOBLE', 'UNIVERSITY', 'HANDSHAKE', 'HANDSHAKE-MOCK', 'LINKEDIN', 'LINKEDIN-MOCK', 'MANUAL'],
       required: true,
     },
     sourceJobId: {

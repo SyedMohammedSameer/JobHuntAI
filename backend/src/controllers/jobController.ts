@@ -1364,3 +1364,118 @@ export const getSimilarJobs = async (req: Request, res: Response) => {
     });
   }
 };
+/**
+ * GET /api/jobs/university
+ * Get jobs specifically for university students (Handshake, LinkedIn internships, entry-level)
+ */
+export const getUniversityJobs = async (req: Request, res: Response) => {
+  try {
+    const {
+      page = 1,
+      limit = 50,
+      keywords,
+      location,
+      employmentType,
+    } = req.query;
+
+    const pageNum = parseInt(page as string);
+    const limitNum = parseInt(limit as string);
+    const skip = (pageNum - 1) * limitNum;
+
+    // Build match query for university-relevant jobs
+    const matchQuery: any = {
+      isActive: true,
+      $or: [
+        // Handshake jobs (all are university-focused)
+        { source: { $in: ['HANDSHAKE', 'HANDSHAKE-MOCK'] } },
+        
+        // LinkedIn/other sources: internships and entry-level
+        {
+          $and: [
+            { source: { $in: ['LINKEDIN', 'LINKEDIN-MOCK', 'REMOTEOK', 'USAJOBS', 'ARBEITNOW', 'CAREERJET', 'JOOBLE'] } },
+            {
+              $or: [
+                { employmentType: 'INTERNSHIP' },
+                { experienceLevel: 'ENTRY' },
+                { title: { $regex: /intern|internship|entry level|new grad|graduate|junior/i } },
+                { isCampusExclusive: true },
+              ],
+            },
+          ],
+        },
+      ],
+    };
+
+    // Add additional filters
+    if (keywords) {
+      matchQuery.$text = { $search: keywords as string };
+    }
+
+    if (location) {
+      matchQuery.location = { $regex: location as string, $options: 'i' };
+    }
+
+    if (employmentType) {
+      matchQuery.employmentType = (employmentType as string).toUpperCase();
+    }
+
+    // Execute query with pagination
+    const [jobs, total] = await Promise.all([
+      Job.find(matchQuery)
+        .sort({ postedDate: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      Job.countDocuments(matchQuery),
+    ]);
+
+    // Calculate source breakdown stats
+    const sourceBreakdown = await Job.aggregate([
+      { $match: matchQuery },
+      { $group: { _id: '$source', count: { $sum: 1 } } },
+    ]);
+
+    const stats = {
+      total,
+      handshake: 0,
+      linkedin: 0,
+      other: 0,
+    };
+
+    sourceBreakdown.forEach((item: any) => {
+      if (item._id.includes('HANDSHAKE')) {
+        stats.handshake += item.count;
+      } else if (item._id.includes('LINKEDIN')) {
+        stats.linkedin += item.count;
+      } else {
+        stats.other += item.count;
+      }
+    });
+
+    logger.info('University jobs retrieved', {
+      total: jobs.length,
+      page: pageNum,
+      stats,
+    });
+
+    res.json({
+      success: true,
+      data: {
+        jobs,
+        pagination: {
+          total,
+          page: pageNum,
+          limit: limitNum,
+          pages: Math.ceil(total / limitNum),
+        },
+        stats,
+      },
+    });
+  } catch (error: any) {
+    logger.error('Error getting university jobs:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error fetching university jobs',
+    });
+  }
+};
