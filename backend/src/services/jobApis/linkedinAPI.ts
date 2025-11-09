@@ -5,22 +5,20 @@ const RAPIDAPI_HOST = 'linkedin-job-search-api.p.rapidapi.com';
 const RAPIDAPI_URL = `https://${RAPIDAPI_HOST}`;
 
 interface LinkedInJob {
-  job_id: string;
-  job_title: string;
-  company_name: string;
-  company_logo?: string;
-  location: string;
-  posted_time: string;
-  job_type?: string;
-  work_type?: string;
-  job_description?: string;
-  application_url: string;
-  salary?: {
-    min?: number;
-    max?: number;
-    currency?: string;
-  };
-  seniority_level?: string;
+  id: string;
+  title: string;
+  organization: string;
+  organization_logo?: string;
+  locations_derived?: string[];
+  date_posted: string;
+  employment_type?: string[];
+  url: string;
+  description_text?: string;
+  external_apply_url?: string;
+  salary_raw?: any;
+  seniority?: string;
+  remote_derived?: boolean;
+  countries_derived?: string[];
 }
 
 interface LinkedInApiResponse {
@@ -106,6 +104,8 @@ export const fetchLinkedInJobs = async (
       return [];
     }
 
+    logger.info(`📥 Received ${response.data.length} total jobs from LinkedIn API`);
+
     const transformedJobs = transformLinkedInJobs(response.data);
 
     // Update cache
@@ -115,7 +115,7 @@ export const fetchLinkedInJobs = async (
     };
 
     logger.info(
-      `✅ Successfully fetched ${transformedJobs.length} jobs from LinkedIn`
+      `✅ Successfully fetched ${transformedJobs.length} USA jobs from LinkedIn (filtered from ${response.data.length} total)`
     );
     return transformedJobs;
   } catch (error) {
@@ -157,30 +157,35 @@ export const fetchLinkedInMultiple = async (): Promise<TransformedJob[]> => {
 
 /**
  * Transform LinkedIn API response to our job schema
+ * Filters for USA jobs only
  */
 const transformLinkedInJobs = (data: LinkedInJob[]): TransformedJob[] => {
-  return data.map((job) => {
-    const employmentType = mapJobType(job.job_type || job.work_type);
-    const experienceLevel = mapExperienceLevel(job.seniority_level);
+  // Filter for USA jobs only
+  const usaJobs = data.filter(job =>
+    job.countries_derived?.includes('United States') ||
+    job.countries_derived?.includes('US') ||
+    job.countries_derived?.includes('USA')
+  );
+
+  return usaJobs.map((job) => {
+    const employmentType = mapJobType(job.employment_type?.[0]);
+    const experienceLevel = mapExperienceLevel(job.seniority);
 
     return {
-      sourceJobId: job.job_id,
+      sourceJobId: job.id,
       source: 'LINKEDIN',
-      title: job.job_title,
-      company: job.company_name,
-      companyLogo: job.company_logo,
-      location: job.location || 'Not specified',
-      description: job.job_description || '',
-      salaryMin: job.salary?.min,
-      salaryMax: job.salary?.max,
-      salaryCurrency: job.salary?.currency || 'USD',
-      remote:
-        job.work_type?.toLowerCase().includes('remote') ||
-        job.location?.toLowerCase().includes('remote') ||
-        false,
+      title: job.title,
+      company: job.organization,
+      companyLogo: job.organization_logo,
+      location: job.locations_derived?.[0] || 'Remote',
+      description: job.description_text || 'No description available',
+      salaryMin: job.salary_raw?.min,
+      salaryMax: job.salary_raw?.max,
+      salaryCurrency: job.salary_raw?.currency || 'USD',
+      remote: job.remote_derived || false,
       employmentType,
-      postedDate: parsePostedDate(job.posted_time),
-      applicationUrl: job.application_url,
+      postedDate: parsePostedDate(job.date_posted),
+      applicationUrl: job.external_apply_url || job.url,
       experienceLevel,
       skills: [], // LinkedIn API might not provide skills directly
     };
@@ -241,11 +246,17 @@ const mapExperienceLevel = (level?: string): string => {
  * Parse LinkedIn posted time to Date
  */
 const parsePostedDate = (postedTime: string): Date => {
-  // LinkedIn returns relative time like "2 days ago", "1 week ago"
   const now = new Date();
 
   if (!postedTime) return now;
 
+  // Try parsing as ISO date first
+  const isoDate = new Date(postedTime);
+  if (!isNaN(isoDate.getTime())) {
+    return isoDate;
+  }
+
+  // LinkedIn returns relative time like "2 days ago", "1 week ago"
   const match = postedTime.match(/(\d+)\s+(minute|hour|day|week|month)s?\s+ago/i);
   if (match) {
     const value = parseInt(match[1]);
