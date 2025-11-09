@@ -1,17 +1,19 @@
 // Quick script to manually trigger job aggregation
-// Run with: node backend/trigger-jobs.js
+// Run with: ts-node backend/trigger-jobs.ts
+// Or: npx ts-node backend/trigger-jobs.ts
 
-require('dotenv').config();
-const mongoose = require('mongoose');
+import dotenv from 'dotenv';
+import mongoose from 'mongoose';
+import connectDB from './src/config/database';
+import jobAggregator from './src/services/jobAggregator';
+
+dotenv.config();
 
 async function triggerJobAggregation() {
   try {
     console.log('🚀 Connecting to MongoDB...');
-    await mongoose.connect(process.env.MONGODB_URI);
+    await connectDB();
     console.log('✅ Connected to MongoDB\n');
-
-    // Import the aggregator
-    const jobAggregator = require('./src/services/jobAggregator').default;
 
     console.log('📡 Starting job aggregation from all sources...');
     console.log('   This will fetch from:');
@@ -42,7 +44,7 @@ async function triggerJobAggregation() {
     await mongoose.disconnect();
     console.log('👋 Done! Database connection closed.\n');
     process.exit(0);
-  } catch (error) {
+  } catch (error: any) {
     console.error('\n❌ Error during job aggregation:');
     console.error(error.message);
     console.error('\nStack trace:');
@@ -53,3 +55,4 @@ async function triggerJobAggregation() {
 
 // Run it!
 triggerJobAggregation();
+

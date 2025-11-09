@@ -1,6 +1,6 @@
 // Test LinkedIn API connection
 // Run with: node backend/test-linkedin-api.js
-
+require('ts-node/register');
 require('dotenv').config();
 const axios = require('axios');
 
