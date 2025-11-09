@@ -84,13 +84,14 @@ export const fetchLinkedInJobs = async (
   }
 
   try {
-    logger.info(`Fetching LinkedIn jobs from last 24 hours`);
+    logger.info(`Fetching LinkedIn jobs from last 24 hours with location filter: ${location}`);
 
     // This API returns an array directly, not an object with a data property
     const response = await axios.get<LinkedInJob[]>(`${RAPIDAPI_URL}/active-jb-24h`, {
       params: {
         offset: 0,
         description_type: 'text',
+        location_filter: location, // Filter at API level for efficiency
       },
       headers: {
         'x-rapidapi-key': process.env.RAPIDAPI_KEY,
@@ -104,7 +105,7 @@ export const fetchLinkedInJobs = async (
       return [];
     }
 
-    logger.info(`📥 Received ${response.data.length} total jobs from LinkedIn API`);
+    logger.info(`📥 Received ${response.data.length} jobs from LinkedIn API`);
 
     const transformedJobs = transformLinkedInJobs(response.data);
 
@@ -115,7 +116,7 @@ export const fetchLinkedInJobs = async (
     };
 
     logger.info(
-      `✅ Successfully fetched ${transformedJobs.length} USA jobs from LinkedIn (filtered from ${response.data.length} total)`
+      `✅ Successfully fetched ${transformedJobs.length} LinkedIn jobs`
     );
     return transformedJobs;
   } catch (error) {
@@ -136,38 +137,92 @@ export const fetchLinkedInJobs = async (
 };
 
 /**
- * Fetch LinkedIn jobs from last 24 hours
- * This endpoint returns all jobs posted in last 24 hours (all levels, all types)
+ * Fetch LinkedIn jobs from last 24 hours with multiple location filters
+ * Makes multiple API calls to get maximum coverage across USA
  */
 export const fetchLinkedInMultiple = async (): Promise<TransformedJob[]> => {
-  logger.info('Fetching all LinkedIn jobs from last 24 hours...');
+  logger.info('Fetching LinkedIn jobs with multiple location filters...');
+
+  if (!process.env.RAPIDAPI_KEY) {
+    logger.warn('⚠️  LinkedIn RapidAPI key not configured, using mock data');
+    return getMockLinkedInJobs();
+  }
 
   try {
-    // The /active-jb-24h endpoint returns all jobs from last 24 hours
-    // No need for multiple searches - we get everything in one call
-    const jobs = await fetchLinkedInJobs();
+    // Define multiple location filters to maximize job coverage
+    const locationFilters = [
+      'United States', // General USA jobs
+      'New York OR San Francisco OR Seattle OR Austin OR Boston', // Tech hubs
+      'Chicago OR Denver OR Los Angeles OR San Diego OR Portland', // Other major cities
+      'Remote', // Remote-only positions
+    ];
 
-    logger.info(`✅ Fetched ${jobs.length} LinkedIn jobs from last 24 hours`);
-    return jobs;
+    const allJobs: TransformedJob[] = [];
+    const seenJobIds = new Set<string>();
+
+    // Make parallel API calls for each location filter
+    logger.info(`Making ${locationFilters.length} API calls with different location filters...`);
+
+    for (const location of locationFilters) {
+      try {
+        logger.info(`Fetching jobs for: ${location}`);
+
+        const response = await axios.get<LinkedInJob[]>(`${RAPIDAPI_URL}/active-jb-24h`, {
+          params: {
+            offset: 0,
+            description_type: 'text',
+            location_filter: location,
+          },
+          headers: {
+            'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+            'x-rapidapi-host': RAPIDAPI_HOST,
+          },
+          timeout: 15000,
+        });
+
+        if (response.data && Array.isArray(response.data) && response.data.length > 0) {
+          logger.info(`📥 Received ${response.data.length} jobs for "${location}"`);
+
+          const transformedJobs = transformLinkedInJobs(response.data);
+
+          // Deduplicate jobs based on sourceJobId
+          let newJobs = 0;
+          transformedJobs.forEach(job => {
+            if (!seenJobIds.has(job.sourceJobId)) {
+              seenJobIds.add(job.sourceJobId);
+              allJobs.push(job);
+              newJobs++;
+            }
+          });
+
+          logger.info(`✅ Added ${newJobs} unique jobs from "${location}" (${transformedJobs.length - newJobs} duplicates skipped)`);
+        } else {
+          logger.warn(`No jobs returned for "${location}"`);
+        }
+
+        // Small delay between requests to avoid rate limiting
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+      } catch (error) {
+        logger.error(`Error fetching jobs for "${location}":`, error);
+        // Continue with next location filter even if one fails
+      }
+    }
+
+    logger.info(`✅ Total unique LinkedIn jobs fetched: ${allJobs.length}`);
+    return allJobs;
+
   } catch (error) {
-    logger.error('Error fetching LinkedIn jobs:', error);
+    logger.error('Error in fetchLinkedInMultiple:', error);
     return getMockLinkedInJobs();
   }
 };
 
 /**
  * Transform LinkedIn API response to our job schema
- * Filters for USA jobs only
  */
 const transformLinkedInJobs = (data: LinkedInJob[]): TransformedJob[] => {
-  // Filter for USA jobs only
-  const usaJobs = data.filter(job =>
-    job.countries_derived?.includes('United States') ||
-    job.countries_derived?.includes('US') ||
-    job.countries_derived?.includes('USA')
-  );
-
-  return usaJobs.map((job) => {
+  return data.map((job) => {
     const employmentType = mapJobType(job.employment_type?.[0]);
     const experienceLevel = mapExperienceLevel(job.seniority);
 
