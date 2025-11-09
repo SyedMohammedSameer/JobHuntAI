@@ -1,7 +1,7 @@
 import axios, { AxiosError } from 'axios';
 import logger from '../../utils/logger';
 
-const RAPIDAPI_HOST = 'linkedin-job-search1.p.rapidapi.com';
+const RAPIDAPI_HOST = 'linkedin-job-search-api.p.rapidapi.com';
 const RAPIDAPI_URL = `https://${RAPIDAPI_HOST}`;
 
 interface LinkedInJob {
@@ -88,18 +88,14 @@ export const fetchLinkedInJobs = async (
   try {
     logger.info(`Fetching LinkedIn jobs: ${keywords} in ${location}`);
 
-    const response = await axios.get<LinkedInApiResponse>(`${RAPIDAPI_URL}/`, {
+    const response = await axios.get<LinkedInApiResponse>(`${RAPIDAPI_URL}/active-jb-1h`, {
       params: {
-        keywords,
-        locationId: location,
-        datePosted: options.datePosted || 'pastMonth',
-        jobType: options.jobType,
-        experienceLevel: options.experienceLevel,
-        onsiteRemote: options.onsiteRemote,
+        offset: 0,
+        description_type: 'text',
       },
       headers: {
-        'X-RapidAPI-Key': process.env.RAPIDAPI_KEY,
-        'X-RapidAPI-Host': RAPIDAPI_HOST,
+        'x-rapidapi-key': process.env.RAPIDAPI_KEY,
+        'x-rapidapi-host': RAPIDAPI_HOST,
       },
       timeout: 15000,
     });
