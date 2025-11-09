@@ -86,9 +86,10 @@ export const fetchLinkedInJobs = async (
   }
 
   try {
-    logger.info(`Fetching LinkedIn jobs: ${keywords} in ${location}`);
+    logger.info(`Fetching LinkedIn jobs from last 24 hours`);
 
-    const response = await axios.get<LinkedInApiResponse>(`${RAPIDAPI_URL}/active-jb-1h`, {
+    // This API returns an array directly, not an object with a data property
+    const response = await axios.get<LinkedInJob[]>(`${RAPIDAPI_URL}/active-jb-24h`, {
       params: {
         offset: 0,
         description_type: 'text',
@@ -100,12 +101,12 @@ export const fetchLinkedInJobs = async (
       timeout: 15000,
     });
 
-    if (!response.data || !response.data.data) {
+    if (!response.data || !Array.isArray(response.data) || response.data.length === 0) {
       logger.warn('No jobs returned from LinkedIn API');
       return [];
     }
 
-    const transformedJobs = transformLinkedInJobs(response.data.data);
+    const transformedJobs = transformLinkedInJobs(response.data);
 
     // Update cache
     cache = {
@@ -135,99 +136,23 @@ export const fetchLinkedInJobs = async (
 };
 
 /**
- * Fetch multiple job types from LinkedIn (all levels)
+ * Fetch LinkedIn jobs from last 24 hours
+ * This endpoint returns all jobs posted in last 24 hours (all levels, all types)
  */
 export const fetchLinkedInMultiple = async (): Promise<TransformedJob[]> => {
-  const searches = [
-    // Entry-level & Internships (for university students)
-    {
-      keywords: 'software engineer intern',
-      location: 'United States',
-      jobType: 'I',
-      experienceLevel: '1',
-    },
-    {
-      keywords: 'data science intern',
-      location: 'United States',
-      jobType: 'I',
-      experienceLevel: '1',
-    },
-    {
-      keywords: 'frontend developer entry level',
-      location: 'United States',
-      jobType: 'F',
-      experienceLevel: '1',
-    },
-    // Regular/Mid-level positions
-    {
-      keywords: 'software engineer',
-      location: 'United States',
-      jobType: 'F',
-      experienceLevel: '2', // Associate/Mid-level
-    },
-    {
-      keywords: 'full stack developer',
-      location: 'United States',
-      jobType: 'F',
-      experienceLevel: '2',
-    },
-    {
-      keywords: 'backend engineer',
-      location: 'Remote',
-      jobType: 'F',
-      experienceLevel: '2',
-      onsiteRemote: '2', // Remote
-    },
-    {
-      keywords: 'product manager',
-      location: 'United States',
-      jobType: 'F',
-      experienceLevel: '2',
-    },
-    // Senior positions
-    {
-      keywords: 'senior software engineer',
-      location: 'United States',
-      jobType: 'F',
-      experienceLevel: '3', // Senior
-    },
-    {
-      keywords: 'DevOps engineer',
-      location: 'Remote',
-      jobType: 'F',
-      onsiteRemote: '2', // Remote
-    },
-  ];
+  logger.info('Fetching all LinkedIn jobs from last 24 hours...');
 
-  const allJobs: TransformedJob[] = [];
+  try {
+    // The /active-jb-24h endpoint returns all jobs from last 24 hours
+    // No need for multiple searches - we get everything in one call
+    const jobs = await fetchLinkedInJobs();
 
-  for (const search of searches) {
-    try {
-      const jobs = await fetchLinkedInJobs(
-        search.keywords,
-        search.location,
-        {
-          jobType: search.jobType,
-          experienceLevel: search.experienceLevel,
-          onsiteRemote: search.onsiteRemote,
-          datePosted: 'pastMonth',
-        }
-      );
-      allJobs.push(...jobs);
-
-      // Delay between API calls to respect rate limits
-      await new Promise((resolve) => setTimeout(resolve, 2000));
-    } catch (error) {
-      logger.error(`Error fetching LinkedIn jobs for ${search.keywords}:`, error);
-    }
+    logger.info(`✅ Fetched ${jobs.length} LinkedIn jobs from last 24 hours`);
+    return jobs;
+  } catch (error) {
+    logger.error('Error fetching LinkedIn jobs:', error);
+    return getMockLinkedInJobs();
   }
-
-  // Remove duplicates based on sourceJobId
-  const uniqueJobs = Array.from(
-    new Map(allJobs.map((job) => [job.sourceJobId, job])).values()
-  );
-
-  return uniqueJobs;
 };
 
 /**
