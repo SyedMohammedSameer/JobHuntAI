@@ -60,10 +60,26 @@ app.use(compression());
 // Security middleware
 app.use(helmet());
 
-// CORS configuration
+// CORS configuration - Support multiple origins
+const allowedOrigins = [
+  'http://localhost:5173',  // Local development
+  'http://localhost:3000',  // Alternative local port
+  process.env.FRONTEND_URL, // Primary frontend URL from env
+].filter(Boolean); // Remove undefined values
+
 app.use(
   cors({
-    origin: FRONTEND_URL,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps, Postman, etc.)
+      if (!origin) return callback(null, true);
+
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn(`CORS blocked request from origin: ${origin}`);
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
     allowedHeaders: ['Content-Type', 'Authorization']
