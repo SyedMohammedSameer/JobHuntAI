@@ -455,10 +455,35 @@ Expected response:
 - Ensure `netlify.toml` has redirect rules
 - Redeploy if needed
 
+**CORS Errors (CRITICAL FIX):**
+If you see this error in the browser console:
+```
+Access to XMLHttpRequest at 'https://your-backend.railway.app/api/...' from origin 'https://your-frontend.netlify.app'
+has been blocked by CORS policy: No 'Access-Control-Allow-Origin' header is present on the requested resource.
+```
+
+**Solution:**
+1. Go to your Railway project dashboard
+2. Navigate to "Variables" tab
+3. Ensure `FRONTEND_URL` is set to your **exact** Netlify URL
+   ```
+   FRONTEND_URL=https://jobs4uai.netlify.app
+   ```
+   ⚠️ **Must be exact match - no trailing slash, must include https://**
+4. Redeploy your backend on Railway
+5. Clear browser cache and test again
+
+**Common mistakes:**
+- ❌ `FRONTEND_URL=http://jobs4uai.netlify.app` (wrong protocol)
+- ❌ `FRONTEND_URL=https://jobs4uai.netlify.app/` (trailing slash)
+- ❌ `FRONTEND_URL` not set at all
+- ✅ `FRONTEND_URL=https://jobs4uai.netlify.app` (correct!)
+
 **API Calls Failing:**
-- Check `VITE_API_URL` is correct
-- Verify CORS settings in backend
+- Check `VITE_API_URL` is correct in Netlify environment variables
+- Verify CORS settings in backend (see CORS errors above)
 - Check browser console for errors
+- Test backend health endpoint: `https://your-backend.railway.app/health`
 
 **Build Failures:**
 - Check Netlify build logs
