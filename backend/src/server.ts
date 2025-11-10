@@ -250,7 +250,8 @@ const startServer = async (): Promise<void> => {
     initializeCronJobs();
 
     // Step 3: Start Express server
-    const server = app.listen(PORT, () => {
+    // IMPORTANT: Bind to 0.0.0.0 for Railway/container deployment
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info('═══════════════════════════════════════════════════');
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📡 Environment: ${NODE_ENV}`);
