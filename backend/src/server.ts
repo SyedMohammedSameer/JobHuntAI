@@ -57,8 +57,12 @@ app.use('/api/webhooks', express.raw({ type: 'application/json' }), webhookRoute
 // Compression middleware (compress all responses)
 app.use(compression());
 
-// Security middleware
-app.use(helmet());
+// Security middleware - Configure helmet to allow CORS
+app.use(
+  helmet({
+    crossOriginResourcePolicy: { policy: 'cross-origin' }
+  })
+);
 
 // CORS configuration - Support multiple origins
 const allowedOrigins = [
@@ -67,22 +71,31 @@ const allowedOrigins = [
   process.env.FRONTEND_URL, // Primary frontend URL from env
 ].filter(Boolean); // Remove undefined values
 
+logger.info(`CORS allowed origins: ${allowedOrigins.join(', ')}`);
+
 app.use(
   cors({
     origin: (origin, callback) => {
       // Allow requests with no origin (like mobile apps, Postman, etc.)
-      if (!origin) return callback(null, true);
+      if (!origin) {
+        logger.debug('CORS: Request with no origin - allowing');
+        return callback(null, true);
+      }
 
       if (allowedOrigins.includes(origin)) {
+        logger.debug(`CORS: Allowing origin: ${origin}`);
         callback(null, true);
       } else {
-        logger.warn(`CORS blocked request from origin: ${origin}`);
+        logger.warn(`CORS: BLOCKED request from origin: ${origin}`);
+        logger.warn(`CORS: Allowed origins are: ${allowedOrigins.join(', ')}`);
         callback(new Error('Not allowed by CORS'));
       }
     },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+    exposedHeaders: ['Content-Range', 'X-Content-Range'],
+    maxAge: 600 // Cache preflight requests for 10 minutes
   })
 );
 
