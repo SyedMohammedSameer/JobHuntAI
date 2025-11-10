@@ -6,6 +6,7 @@ import arbeitnowService from './jobApis/arbeitnow';
 import joobleService from './jobApis/jooble';
 import careerjetService from './jobApis/careerjet';
 import { fetchHandshakeJobs } from './jobApis/handshakeAPI';
+import { fetchLinkedInMultiple } from './jobApis/linkedinAPI';
 import { logger } from '../utils/logger';
 
 class JobAggregatorService {
@@ -56,6 +57,21 @@ class JobAggregatorService {
       logger.info(`Saved ${handshakeJobs.length} jobs from Handshake`);
     } catch (error: any) {
       logger.error('Error aggregating from Handshake:', error.message);
+    }
+
+    // Fetch LinkedIn jobs separately
+    try {
+      logger.info('Fetching jobs from LinkedIn...');
+      const linkedInJobs = await fetchLinkedInMultiple();
+
+      for (const job of linkedInJobs) {
+        await this.saveLinkedInJob(job);
+        totalSaved++;
+      }
+
+      logger.info(`Saved ${linkedInJobs.length} jobs from LinkedIn`);
+    } catch (error: any) {
+      logger.error('Error aggregating from LinkedIn:', error.message);
     }
 
     logger.info(`Total jobs aggregated: ${totalSaved}`);
@@ -168,6 +184,63 @@ class JobAggregatorService {
       }
     } catch (error: any) {
       logger.error(`Error saving Handshake job ${jobData.sourceJobId}: ${error.message}`);
+    }
+  }
+
+  /**
+   * Save or update a LinkedIn job in the database
+   */
+  private async saveLinkedInJob(jobData: any): Promise<void> {
+    try {
+      // Check if job already exists
+      const existingJob = await Job.findOne({
+        source: jobData.source,
+        sourceJobId: jobData.sourceJobId
+      });
+
+      const jobDoc = {
+        title: jobData.title || 'Untitled Position',
+        company: jobData.company || 'Unknown Company',
+        location: jobData.location || 'Not Specified',
+        description: jobData.description || '',
+        requirements: [],
+        responsibilities: [],
+        employmentType: this.mapEmploymentType(jobData.employmentType),
+        experienceLevel: jobData.experienceLevel?.toUpperCase() || 'ENTRY',
+        remote: jobData.remote || false,
+        salaryMin: jobData.salaryMin,
+        salaryMax: jobData.salaryMax,
+        salaryCurrency: jobData.salaryCurrency || 'USD',
+        visaSponsorship: {
+          h1b: false,
+          opt: false,
+          stemOpt: false
+        },
+        source: jobData.source,
+        sourceJobId: jobData.sourceJobId,
+        sourceUrl: jobData.applicationUrl || '',
+        isUniversityJob: jobData.employmentType === 'INTERNSHIP' || jobData.experienceLevel === 'ENTRY',
+        universityName: undefined,
+        isCampusExclusive: false,
+        postedDate: jobData.postedDate || new Date(),
+        applicationUrl: jobData.applicationUrl || '',
+        skillsRequired: jobData.skills || [],
+        industryTags: [],
+        isActive: true,
+        isFeatured: false,
+        lastRefreshed: new Date(),
+        companyLogo: jobData.companyLogo
+      };
+
+      if (existingJob) {
+        // Update existing job
+        await Job.findByIdAndUpdate(existingJob._id, jobDoc);
+      } else {
+        // Create new job
+        await Job.create(jobDoc);
+      }
+    } catch (error: any) {
+      logger.error(`Error saving LinkedIn job ${jobData.sourceJobId}: ${error.message}`);
     }
   }
 
