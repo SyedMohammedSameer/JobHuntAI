@@ -37,7 +37,7 @@ dotenv.config();
 const app = express();
 
 // Environment variables
-const PORT = process.env.PORT || 5000;
+const PORT = parseInt(process.env.PORT || '5000', 10);
 const NODE_ENV = process.env.NODE_ENV || 'development';
 const FRONTEND_URL = process.env.FRONTEND_URL || 'http://localhost:5173';
 
@@ -250,7 +250,7 @@ const startServer = async (): Promise<void> => {
     initializeCronJobs();
 
     // Step 3: Start Express server
-    const server = app.listen(PORT, () => {
+    const server = app.listen(PORT, '0.0.0.0', () => {
       logger.info('═══════════════════════════════════════════════════');
       logger.info(`🚀 Server running on port ${PORT}`);
       logger.info(`📡 Environment: ${NODE_ENV}`);
